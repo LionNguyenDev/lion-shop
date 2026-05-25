@@ -89,7 +89,7 @@ export default function ImageUploadButton({
     return (
       <div className={`flex flex-col gap-3 ${className}`}>
         {preview && showPreview && (
-          <div className="relative h-32 w-32 overflow-hidden rounded-xl border border-zinc-200">
+          <div className="relative h-32 w-32 overflow-hidden rounded-xl border border-border">
             <Image
               src={preview}
               alt="preview"
@@ -122,12 +122,12 @@ export default function ImageUploadButton({
         )}
         <div className="w-full max-w-xs">
           <div className="mb-1 flex items-center justify-between text-xs">
-            <span className="text-zinc-500">Đang tải lên…</span>
-            <span className="font-medium tabular-nums text-blue-600">
+            <span className="text-muted-foreground">Đang tải lên…</span>
+            <span className="font-medium tabular-nums text-blue-600 dark:text-blue-400">
               {progress}%
             </span>
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-blue-500 transition-all duration-150 ease-out"
               style={{ width: `${progress}%` }}
@@ -173,8 +173,8 @@ export default function ImageUploadButton({
 
         {/* Meta – chỉ hiện khi vừa upload mới */}
         {result && (
-          <div className="text-xs text-zinc-500">
-            <p className="truncate max-w-[8rem]">{result.original_filename}</p>
+          <div className="text-xs text-muted-foreground">
+            <p className="truncate max-w-32">{result.original_filename}</p>
             <p>
               {(result.bytes / 1024).toFixed(0)} KB · {result.width}×
               {result.height}
@@ -186,7 +186,7 @@ export default function ImageUploadButton({
         <button
           type="button"
           onClick={handleReset}
-          className="flex w-fit items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 shadow-sm transition-all hover:border-zinc-400 hover:text-zinc-800"
+          className="flex w-fit items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-muted"
         >
           <svg
             className="h-3.5 w-3.5"
@@ -229,19 +229,19 @@ export default function ImageUploadButton({
           rounded-2xl border-2 border-dashed px-8 py-6 transition-all duration-200
           ${
             isDragging
-              ? 'border-blue-500 bg-blue-50'
-              : 'border-zinc-300 bg-zinc-50 hover:border-blue-400 hover:bg-blue-50'
+              ? 'border-blue-500 bg-blue-500/10'
+              : 'border-border bg-muted/20 hover:border-blue-500 hover:bg-blue-500/5'
           }
         `}
       >
         <div
           className={`
           flex h-12 w-12 items-center justify-center rounded-full transition-colors duration-200
-          ${isDragging ? 'bg-blue-100' : 'bg-zinc-200 group-hover:bg-blue-100'}
+          ${isDragging ? 'bg-blue-500/20' : 'bg-muted group-hover:bg-blue-500/10'}
         `}
         >
           <svg
-            className={`h-6 w-6 transition-colors duration-200 ${isDragging ? 'text-blue-500' : 'text-zinc-400 group-hover:text-blue-500'}`}
+            className={`h-6 w-6 transition-colors duration-200 ${isDragging ? 'text-blue-500' : 'text-muted-foreground group-hover:text-blue-500'}`}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -257,11 +257,11 @@ export default function ImageUploadButton({
 
         <div className="text-center">
           <p
-            className={`text-sm font-medium transition-colors duration-200 ${isDragging ? 'text-blue-600' : 'text-zinc-700 group-hover:text-blue-600'}`}
+            className={`text-sm font-medium transition-colors duration-200 ${isDragging ? 'text-blue-600' : 'text-foreground group-hover:text-blue-500 dark:group-hover:text-blue-400'}`}
           >
             {isDragging ? 'Thả ảnh vào đây' : label}
           </p>
-          <p className="mt-0.5 text-xs text-zinc-400">
+          <p className="mt-0.5 text-xs text-muted-foreground/60">
             PNG, JPG, WebP, GIF · Tối đa{' '}
             {(maxSizeBytes / 1024 / 1024).toFixed(0)} MB
           </p>
@@ -269,7 +269,7 @@ export default function ImageUploadButton({
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+        <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2 text-sm text-red-600 dark:text-red-400">
           <svg
             className="h-4 w-4 shrink-0"
             fill="currentColor"

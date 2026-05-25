@@ -3,6 +3,18 @@
 import { AlertCircle, Edit, Package, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import { Product } from '@/lib/types'
+import { formatVND } from '@/lib/format'
+import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 interface ProductListProps {
   products: Product[]
@@ -19,11 +31,11 @@ export default function ProductList({
 }: ProductListProps) {
   if (loading) {
     return (
-      <div className="flex flex-col gap-3">
+      <div className="space-y-2">
         {[...Array(4)].map((_, i) => (
           <div
             key={i}
-            className="h-20 rounded-2xl bg-slate-100 animate-pulse"
+            className="h-16 rounded-xl bg-muted animate-pulse"
             style={{ animationDelay: `${i * 80}ms` }}
           />
         ))}
@@ -33,13 +45,13 @@ export default function ProductList({
 
   if (products.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 gap-4 text-slate-400">
-        <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
-          <Package className="w-8 h-8 text-slate-300" />
+      <div className="flex flex-col items-center justify-center py-24 gap-4 text-muted-foreground">
+        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
+          <Package className="w-8 h-8 text-muted-foreground/40" />
         </div>
         <div className="text-center">
-          <p className="text-sm font-medium text-slate-500">No products yet</p>
-          <p className="text-xs mt-0.5">
+          <p className="text-sm font-medium">No products yet</p>
+          <p className="text-xs mt-0.5 text-muted-foreground/70">
             Add your first product to get started
           </p>
         </div>
@@ -48,137 +60,137 @@ export default function ProductList({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      {/* Header */}
-      <div className="grid grid-cols-[2.5rem_1fr_repeat(3,9rem)_7rem] items-center gap-4 border-b border-slate-100 bg-slate-50/80 px-5 py-3">
-        <div />
-        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-          Product
-        </span>
-        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400 text-right">
-          Cost
-        </span>
-        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400 text-right">
-          Price
-        </span>
-        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400 text-right">
-          Stock
-        </span>
-        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400 text-right">
-          Actions
-        </span>
-      </div>
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/40">
+            <TableHead className="pl-4 w-16" />
+            <TableHead>Product</TableHead>
+            <TableHead className="text-right">Cost</TableHead>
+            <TableHead className="text-right">Price</TableHead>
+            <TableHead className="text-right">Stock</TableHead>
+            <TableHead className="text-right pr-4">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {products.map((product) => {
+            const margin =
+              product.originalPrice > 0
+                ? (
+                    ((product.sellingPrice - product.originalPrice) /
+                      product.originalPrice) *
+                    100
+                  ).toFixed(0)
+                : null
+            const isLowStock = product.stock <= 5
 
-      {/* Rows */}
-      <ul className="divide-y divide-slate-100">
-        {products.map((product, idx) => {
-          const margin =
-            product.originalPrice > 0
-              ? (
-                  ((product.sellingPrice - product.originalPrice) /
-                    product.originalPrice) *
-                  100
-                ).toFixed(0)
-              : null
-          const isLowStock = product.stock <= 5
-
-          return (
-            <li
-              key={product._id}
-              className="group grid grid-cols-[2.5rem_1fr_repeat(3,9rem)_7rem] items-center gap-4 px-5 py-3.5 transition-colors hover:bg-slate-50/60"
-              style={{ animationDelay: `${idx * 40}ms` }}
-            >
-              {/* Thumbnail */}
-              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                {product.image ? (
-                  <Image
-                    src={product.image}
-                    alt={product.name}
-                    fill
-                    sizes="40px"
-                    className="object-cover transition-transform duration-500 group-hover:scale-110"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center">
-                    <Package className="h-4 w-4 text-slate-300" />
+            return (
+              <TableRow key={product._id}>
+                {/* Thumbnail */}
+                <TableCell className="pl-4">
+                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border bg-muted">
+                    {product.image ? (
+                      <Image
+                        src={product.image}
+                        alt={product.name}
+                        fill
+                        sizes="40px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <Package className="h-4 w-4 text-muted-foreground/40" />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </TableCell>
 
-              {/* Name + ID */}
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-800">
-                  {product.name}
-                </p>
-                <p className="text-[11px] text-slate-400 font-mono mt-0.5">
-                  #{product._id.slice(-6).toUpperCase()}
-                </p>
-              </div>
+                {/* Name + ID */}
+                <TableCell>
+                  <p className="font-semibold text-sm truncate max-w-48">
+                    {product.name}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                    #{product._id.slice(-6).toUpperCase()}
+                  </p>
+                </TableCell>
 
-              {/* Original Price */}
-              <div className="text-right">
-                <p className="text-sm text-slate-500">
-                  ${product.originalPrice.toFixed(2)}
-                </p>
-              </div>
+                {/* Cost */}
+                <TableCell className="text-right text-sm text-muted-foreground">
+                  {formatVND(product.originalPrice)}
+                </TableCell>
 
-              {/* Selling Price + Margin */}
-              <div className="text-right">
-                <p className="text-sm font-semibold text-slate-800">
-                  ${product.sellingPrice.toFixed(2)}
-                </p>
-                {margin !== null && (
-                  <span
-                    className={`text-[11px] font-medium ${Number(margin) >= 0 ? 'text-emerald-500' : 'text-red-400'}`}
+                {/* Selling price + margin */}
+                <TableCell className="text-right">
+                  <p className="text-sm font-semibold">
+                    {formatVND(product.sellingPrice)}
+                  </p>
+                  {margin !== null && (
+                    <span
+                      className={cn(
+                        'text-[11px] font-medium',
+                        Number(margin) >= 0
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-destructive',
+                      )}
+                    >
+                      {Number(margin) >= 0 ? '+' : ''}
+                      {margin}%
+                    </span>
+                  )}
+                </TableCell>
+
+                {/* Stock */}
+                <TableCell className="text-right">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'gap-1',
+                      isLowStock
+                        ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30'
+                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
+                    )}
                   >
-                    {Number(margin) >= 0 ? '+' : ''}
-                    {margin}%
-                  </span>
-                )}
-              </div>
+                    {isLowStock && <AlertCircle className="h-3 w-3" />}
+                    {product.stock}
+                  </Badge>
+                </TableCell>
 
-              {/* Stock */}
-              <div className="flex items-center justify-end gap-1.5">
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                    isLowStock
-                      ? 'bg-red-50 text-red-600 ring-1 ring-red-200'
-                      : 'bg-emerald-50 text-emerald-600'
-                  }`}
-                >
-                  {isLowStock && <AlertCircle className="h-3 w-3" />}
-                  {product.stock}
-                </span>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-1">
-                <button
-                  onClick={() => onEdit(product)}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-blue-50 hover:text-blue-600"
-                  title="Edit product"
-                >
-                  <Edit className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => onDelete(product._id)}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-red-50 hover:text-red-500"
-                  title="Delete product"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
+                {/* Actions */}
+                <TableCell className="pr-4">
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => onEdit(product)}
+                      title="Edit product"
+                      className="hover:text-blue-600 hover:bg-blue-500/10 dark:hover:text-blue-400"
+                    >
+                      <Edit />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => onDelete(product._id)}
+                      title="Delete product"
+                      className="hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
 
       {/* Footer count */}
-      <div className="border-t border-slate-100 bg-slate-50/60 px-5 py-2.5">
-        <p className="text-xs text-slate-400">
+      <div className="border-t bg-muted/30 px-4 py-2">
+        <p className="text-xs text-muted-foreground">
           {products.length} {products.length === 1 ? 'product' : 'products'}
           {products.filter((p) => p.stock <= 5).length > 0 && (
-            <span className="ml-2 text-red-400">
+            <span className="ml-2 text-red-500">
               · {products.filter((p) => p.stock <= 5).length} low stock
             </span>
           )}

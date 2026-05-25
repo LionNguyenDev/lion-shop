@@ -1,7 +1,8 @@
 import mongoose from 'mongoose'
 import dbConnect from '@/lib/db'
-import Order, { IOrder } from '@/models/Order'
+import Order from '@/models/Order'
 import Product from '@/models/Product'
+import { statusOrders } from '../types'
 
 export async function getAllOrders() {
   await dbConnect()
@@ -9,7 +10,11 @@ export async function getAllOrders() {
 }
 
 export async function createOrder(data: {
-  items: { product: string; quantity: number }[]
+  items: { product: string; quantity: number; price?: number }[]
+  name: string
+  address: string
+  phone: string
+  status?: statusOrders
 }) {
   await dbConnect()
   const session = await mongoose.startSession()
@@ -29,23 +34,26 @@ export async function createOrder(data: {
         throw new Error(`Insufficient stock for product: ${product.name}`)
       }
 
-      // Update stock
       product.stock -= item.quantity
       await product.save({ session })
 
-      totalAmount += product.sellingPrice * item.quantity
+      const unitPrice = item.price ?? product.sellingPrice
+      totalAmount += unitPrice * item.quantity
       orderItems.push({
         product: product._id,
         name: product.name,
         quantity: item.quantity,
-        price: product.sellingPrice,
+        price: unitPrice,
       })
     }
 
     const order = new Order({
       items: orderItems,
       totalAmount,
-      status: 'completed', // Auto-complete for this simple demo
+      name: data.name,
+      address: data.address,
+      phone: data.phone,
+      status: data.status ?? statusOrders.UNPAID,
     })
 
     await order.save({ session })
@@ -57,6 +65,19 @@ export async function createOrder(data: {
   } finally {
     session.endSession()
   }
+}
+
+export async function updateOrder(
+  id: string,
+  data: {
+    name?: string
+    phone?: string
+    address?: string
+    status?: statusOrders
+  },
+) {
+  await dbConnect()
+  return Order.findByIdAndUpdate(id, data, { new: true, runValidators: true })
 }
 
 export async function deleteOrder(id: string) {

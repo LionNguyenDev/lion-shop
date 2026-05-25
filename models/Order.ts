@@ -1,5 +1,5 @@
 import mongoose, { type Document, type Model, Schema } from 'mongoose'
-
+import { statusOrders } from '@/lib/types'
 export interface IOrderItem {
   product: mongoose.Types.ObjectId
   name: string
@@ -10,7 +10,7 @@ export interface IOrderItem {
 export interface IOrder extends Document {
   items: IOrderItem[]
   totalAmount: number
-  status: 'pending' | 'completed' | 'cancelled'
+  status: statusOrders
   createdAt: Date
   updatedAt: Date
 }
@@ -31,14 +31,18 @@ const OrderSchema: Schema = new Schema(
     phone: { type: String, required: true }, // phone number of guest
     status: {
       type: String,
-      enum: ['pending', 'completed', 'cancelled'],
-      default: 'pending',
+      enum: Object.values(statusOrders),
+      default: statusOrders.PENDING,
     },
   },
   { timestamps: true },
 )
 
-const Order: Model<IOrder> =
-  mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema)
+// Always delete the cached model so schema changes (e.g. new enum values)
+// take effect immediately in dev without requiring a server restart.
+if (mongoose.models.Order) {
+  delete (mongoose.models as Record<string, unknown>)['Order']
+}
+const Order: Model<IOrder> = mongoose.model<IOrder>('Order', OrderSchema)
 
 export default Order
