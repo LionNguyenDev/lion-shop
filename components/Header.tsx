@@ -1,14 +1,22 @@
 'use client'
 
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { Moon, Sun, Menu, Bell } from 'lucide-react'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Moon, Sun, Menu, Bell, LogOut, Store } from 'lucide-react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Sidebar } from '@/components/Sidebar'
 import { cn } from '@/lib/utils'
@@ -39,6 +47,16 @@ function ThemeToggle() {
 }
 
 export function Header({ title, description, orderBadge, productBadge }: HeaderProps) {
+  const router = useRouter()
+
+  const handleSignOut = async () => {
+    const tid = toast.loading('Signing out…')
+    await fetch('/api/auth/signout', { method: 'POST' })
+    toast.success('Signed out', { id: tid })
+    router.push('/landing')
+    router.refresh()
+  }
+
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background/95 px-6 backdrop-blur supports-backdrop-filter:bg-background/60">
       {/* Mobile hamburger */}
@@ -71,6 +89,40 @@ export function Header({ title, description, orderBadge, productBadge }: HeaderP
           <Bell className="h-4 w-4" />
         </Button>
         <ThemeToggle />
+
+        {/* Go to landing page */}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Link
+                href="/landing"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              />
+            }
+          >
+            <Store className="h-4 w-4" />
+            <span className="sr-only">Landing page</span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Landing page</TooltipContent>
+        </Tooltip>
+
+        {/* Sign out */}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSignOut}
+                className="text-muted-foreground hover:text-destructive"
+              />
+            }
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="sr-only">Sign out</span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Sign out</TooltipContent>
+        </Tooltip>
       </div>
     </header>
   )

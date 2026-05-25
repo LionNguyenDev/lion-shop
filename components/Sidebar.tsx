@@ -1,17 +1,29 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import {
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  Settings,
   ChevronRight,
+  LayoutDashboard,
+  LogOut,
+  Package,
+  Settings,
+  ShoppingCart,
   Store,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface NavItem {
   label: string
@@ -23,6 +35,13 @@ interface NavItem {
 interface SidebarProps {
   orderBadge?: number
   productBadge?: number
+}
+
+interface CurrentUser {
+  id: string
+  name: string
+  username: string
+  role: 'admin' | 'staff'
 }
 
 const baseNav: NavItem[] = [
@@ -68,6 +87,23 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
 
 export function Sidebar({ orderBadge, productBadge }: SidebarProps) {
   const pathname = usePathname()
+  const router   = useRouter()
+  const [user, setUser] = useState<CurrentUser | null>(null)
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((d) => setUser(d.user ?? null))
+      .catch(() => {})
+  }, [])
+
+  const handleSignOut = async () => {
+    const tid = toast.loading('Signing out…')
+    await fetch('/api/auth/signout', { method: 'POST' })
+    toast.success('Signed out', { id: tid })
+    router.push('/landing')
+    router.refresh()
+  }
 
   const mainNav: NavItem[] = baseNav.map((item) => ({
     ...item,
@@ -76,6 +112,8 @@ export function Sidebar({ orderBadge, productBadge }: SidebarProps) {
       : item.href === '/products' ? productBadge
       : item.badge,
   }))
+
+  const initial = user?.name?.[0]?.toUpperCase() ?? 'U'
 
   return (
     <aside className="flex h-full w-60 flex-col border-r bg-card">
@@ -121,15 +159,34 @@ export function Sidebar({ orderBadge, productBadge }: SidebarProps) {
 
       {/* User footer */}
       <div className="border-t p-3">
-        <div className="flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-muted transition-colors cursor-default">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
-            A
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-xs font-semibold">Admin</p>
-            <p className="truncate text-[10px] text-muted-foreground">admin@lionshop.vn</p>
-          </div>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                className="h-auto w-full justify-start gap-2.5 px-2 py-2"
+              />
+            }
+          >
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-violet-500 to-pink-500 text-white text-xs font-bold">
+              {initial}
+            </div>
+            <div className="min-w-0 flex-1 text-left">
+              <p className="truncate text-xs font-semibold">{user?.name ?? '—'}</p>
+              <p className="truncate text-[10px] text-muted-foreground">
+                @{user?.username ?? '—'}
+                {user?.role === 'admin' && <span className="ml-1 text-violet-500">· admin</span>}
+              </p>
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side="top" className="w-52">
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+              <LogOut className="h-4 w-4" /> Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </aside>
   )
