@@ -19,6 +19,7 @@ import { useTheme } from 'next-themes'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { contacts, reviews } from './const'
+import { Icons } from '@/assets/icons'
 
 interface CurrentUser {
   id: string
@@ -259,7 +260,7 @@ function ThemeToggleBtn() {
    TODO: Replace the href values below with your actual social media URLs  */
 const FOLLOW_PLATFORMS = [
   {
-    id: 'facebook', name: 'Facebook', icon: '📘',
+    id: 'facebook', name: 'Facebook', icon: <Icons.Facebook className="h-4 w-4 fill-white" />,
     handle: 'Lion Shop Cosmetics', stat: '1.2K người theo dõi',
     gradient: 'from-blue-600 to-blue-800',
     glow: 'hover:shadow-blue-500/30',
@@ -268,7 +269,7 @@ const FOLLOW_PLATFORMS = [
     screen: 'facebook' as const,
   },
   {
-    id: 'instagram', name: 'Instagram', icon: '📸',
+    id: 'instagram', name: 'Instagram', icon: <Icons.Instagram className="h-4 w-4" />,
     handle: '@lion.cosmetics', stat: '890 người theo dõi',
     gradient: 'from-pink-500 via-rose-500 to-orange-400',
     glow: 'hover:shadow-pink-500/30',
@@ -277,7 +278,7 @@ const FOLLOW_PLATFORMS = [
     screen: 'instagram' as const,
   },
   {
-    id: 'zalo', name: 'Zalo', icon: '💬',
+    id: 'zalo', name: 'Zalo', icon: <Icons.Zalo className="h-4 w-4" />,
     handle: 'Lion Shop Beauty', stat: '650 kết bạn',
     gradient: 'from-sky-500 to-blue-600',
     glow: 'hover:shadow-sky-500/30',
@@ -286,7 +287,7 @@ const FOLLOW_PLATFORMS = [
     screen: 'zalo' as const,
   },
   {
-    id: 'threads', name: 'Threads', icon: '🧵',
+    id: 'threads', name: 'Threads', icon: <Icons.Threads className="h-4 w-4 " />,
     handle: '@lionbeauty', stat: 'Sắp ra mắt',
     gradient: 'from-slate-700 to-slate-900',
     glow: 'hover:shadow-slate-500/20',
@@ -810,9 +811,9 @@ export default function LandingPage() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Nhắn Zalo"
-              className="relative flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-sky-500 to-blue-600 border-2 border-white/20 text-white text-2xl font-black italic shadow-xl shadow-sky-500/40 hover:scale-110 transition-transform duration-200"
+              className="relative flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-sky-500 to-blue-600 border-2 border-white/20 text-white shadow-xl shadow-sky-500/40 hover:scale-110 transition-transform duration-200"
             >
-              Z
+              <Icons.Zalo className="h-8 w-8" />
             </a>
           </div>
         </div>
@@ -830,9 +831,9 @@ export default function LandingPage() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Nhắn Messenger"
-              className="relative flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-blue-600 to-violet-600 border-2 border-white/20 text-white text-2xl font-black shadow-xl shadow-blue-500/40 hover:scale-110 transition-transform duration-200"
+              className="relative flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-blue-600 to-violet-600 border-2 border-white/20 text-white shadow-xl shadow-blue-500/40 hover:scale-110 transition-transform duration-200"
             >
-              M
+              <Icons.Messenger className="h-8 w-8" />
             </a>
           </div>
         </div>
