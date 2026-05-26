@@ -1,6 +1,6 @@
 import mongoose, { type Document, type Model, Schema } from 'mongoose'
 
-export type UserRole = 'admin' | 'staff'
+export type UserRole = 'admin' | 'user'
 
 export interface IUser extends Document {
   name: string

@@ -1,13 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Pagination } from '@/components/ui/pagination'
 import { toast } from 'sonner'
 import { CheckCircle, ListOrdered, Plus, Search, SlidersHorizontal, XCircle } from 'lucide-react'
 import { AppShell } from '@/components/AppShell'
 import OrderList from '@/components/OrderList'
 import OrderForm from '@/components/OrderForm'
 import OrderEditModal from '@/components/OrderEditModal'
-import { formatVND } from '@/lib/format'
+import { formatProfit, formatVND } from '@/lib/format'
 import { Order, statusOrders } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -60,6 +61,8 @@ export default function OrdersPage() {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [search, setSearch]               = useState('')
   const [statusFilter, setStatusFilter]   = useState('')
+  const [page, setPage]                   = useState(1)
+  const PAGE_SIZE = 10
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -67,7 +70,7 @@ export default function OrdersPage() {
       const data = await res.json()
       setOrders(data)
     } catch {
-      toast.error('Failed to load orders')
+      toast.error('Không thể tải đơn hàng')
     } finally {
       setLoading(false)
     }
@@ -82,10 +85,10 @@ export default function OrdersPage() {
 
   /* ── Stats ── */
   const stats = useMemo(() => [
-    { label: 'Total', value: orders.length, color: 'text-foreground', bar: 'bg-primary' },
-    { label: 'Unpaid', value: orders.filter((o) => o.status === statusOrders.UNPAID).length, color: 'text-red-600 dark:text-red-400', bar: 'bg-red-500 dark:bg-red-400' },
-    { label: 'Completed', value: orders.filter((o) => o.status === statusOrders.COMPLETED).length, color: 'text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500 dark:bg-emerald-400' },
-    { label: 'Cancelled', value: orders.filter((o) => o.status === statusOrders.CANCELLED || o.status === statusOrders.FAILED).length, color: 'text-orange-600 dark:text-orange-400', bar: 'bg-orange-500 dark:bg-orange-400' },
+    { label: 'Tổng cộng', value: orders.length, color: 'text-foreground', bar: 'bg-primary' },
+    { label: 'Chưa thanh toán', value: orders.filter((o) => o.status === statusOrders.UNPAID).length, color: 'text-red-600 dark:text-red-400', bar: 'bg-red-500 dark:bg-red-400' },
+    { label: 'Hoàn thành', value: orders.filter((o) => o.status === statusOrders.COMPLETED).length, color: 'text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500 dark:bg-emerald-400' },
+    { label: 'Đã hủy', value: orders.filter((o) => o.status === statusOrders.CANCELLED || o.status === statusOrders.FAILED).length, color: 'text-orange-600 dark:text-orange-400', bar: 'bg-orange-500 dark:bg-orange-400' },
   ], [orders])
 
   /* ── Filter ── */
@@ -98,6 +101,9 @@ export default function OrdersPage() {
     })
   }, [orders, search, statusFilter])
 
+  const totalPages   = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE))
+  const pagedOrders  = filteredOrders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   /* ── Actions ── */
   const handleCreateSuccess = (order: Order) => {
     setCreatedOrder(order)
@@ -108,11 +114,11 @@ export default function OrdersPage() {
   const handleEditSaved = (updated: Order) => {
     setOrders((prev) => prev.map((o) => (o._id === updated._id ? updated : o)))
     setEditingOrder(null)
-    toast.success('Order updated')
+    toast.success('Đã cập nhật đơn hàng')
   }
 
   const handleComplete = async (order: Order) => {
-    const tid = toast.loading('Marking as completed…')
+    const tid = toast.loading('Đang đánh dấu hoàn thành…')
     const res  = await fetch(`/api/orders/${order._id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -121,27 +127,27 @@ export default function OrdersPage() {
     const data = await res.json()
     if (res.ok) {
       setOrders((prev) => prev.map((o) => (o._id === data._id ? data : o)))
-      toast.success('Order completed', { id: tid })
+      toast.success('Đơn hàng đã hoàn thành', { id: tid })
     } else {
-      toast.error(data.error ?? 'Failed to update', { id: tid })
+      toast.error(data.error ?? 'Cập nhật thất bại', { id: tid })
     }
   }
 
   const confirmDelete = async () => {
     if (!deleteTarget) return
     setDeleteLoading(true)
-    const tid = toast.loading('Deleting order…')
+    const tid = toast.loading('Đang xóa đơn hàng…')
     try {
       const res = await fetch(`/api/orders/${deleteTarget._id}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Failed to delete order')
+        throw new Error(data.error || 'Xóa đơn hàng thất bại')
       }
       setOrders((prev) => prev.filter((o) => o._id !== deleteTarget._id))
       setDeleteTarget(null)
-      toast.success('Order deleted', { id: tid })
+      toast.success('Đã xóa đơn hàng', { id: tid })
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete', { id: tid })
+      toast.error(err instanceof Error ? err.message : 'Xóa thất bại', { id: tid })
     } finally {
       setDeleteLoading(false)
     }
@@ -149,22 +155,22 @@ export default function OrdersPage() {
 
   return (
     <AppShell
-      title="Orders"
-      description="Manage and track all customer orders"
+      title="Đơn hàng"
+      description="Quản lý và theo dõi tất cả đơn hàng"
       orderBadge={unpaidCount || undefined}
     >
       {/* ── Header row ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-semibold">Orders List</h2>
-          <p className="text-sm text-muted-foreground">Here you can find all of your orders</p>
+          <h2 className="text-xl font-semibold">Danh sách đơn hàng</h2>
+          <p className="text-sm text-muted-foreground">Quản lý và theo dõi tất cả đơn hàng của bạn</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setCreateModal('form')}>
-            <Plus /> Add Order
+            <Plus /> Thêm đơn hàng
           </Button>
           <Button variant="outline">
-            <SlidersHorizontal /> More Actions
+            <SlidersHorizontal /> Thao tác khác
           </Button>
         </div>
       </div>
@@ -193,42 +199,50 @@ export default function OrdersPage() {
         <div className="relative min-w-56 flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name, phone, Order ID…"
+            placeholder="Tìm kiếm theo tên, SĐT, mã đơn…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             className="pl-9"
           />
         </div>
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? '')}>
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v ?? ''); setPage(1) }}>
           <SelectTrigger className="w-44">
             <ListOrdered className="h-4 w-4 text-muted-foreground" />
-            <SelectValue placeholder="All Status" />
+            <SelectValue placeholder="Tất cả trạng thái" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Status</SelectItem>
+            <SelectItem value="">Tất cả trạng thái</SelectItem>
             {ALL_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
         {(search || statusFilter) && (
-          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setStatusFilter('') }}>
-            <XCircle className="h-4 w-4" /> Clear
+          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setStatusFilter(''); setPage(1) }}>
+            <XCircle className="h-4 w-4" /> Xóa bộ lọc
           </Button>
         )}
       </div>
 
       {!loading && (
         <p className="mb-3 text-xs text-muted-foreground">
-          Showing {filteredOrders.length} of {orders.length} orders
+          Hiển thị {pagedOrders.length} trong {filteredOrders.length} đơn hàng
+          {filteredOrders.length !== orders.length && ` (đã lọc từ ${orders.length})`}
         </p>
       )}
 
       {/* ── Table ── */}
       <OrderList
-        orders={filteredOrders}
+        orders={pagedOrders}
         loading={loading}
         onEdit={setEditingOrder}
         onDelete={setDeleteTarget}
         onComplete={handleComplete}
+      />
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        className="mt-4"
       />
 
       {/* ── Create / Success dialog ── */}
@@ -239,7 +253,7 @@ export default function OrdersPage() {
         <DialogContent className={cn('max-h-[90vh] overflow-y-auto', createModal === 'form' ? 'sm:max-w-2xl' : 'sm:max-w-md')}>
           {createModal === 'form' && (
             <>
-              <DialogHeader><DialogTitle>New Order</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>Đơn hàng mới</DialogTitle></DialogHeader>
               <OrderForm onSuccess={handleCreateSuccess} onCancel={() => setCreateModal('closed')} />
             </>
           )}
@@ -248,7 +262,7 @@ export default function OrdersPage() {
             <div className="space-y-5 py-2">
               <div className="text-center space-y-1">
                 <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
-                <h2 className="text-xl font-bold">Order Created!</h2>
+                <h2 className="text-xl font-bold">Đơn hàng đã được tạo!</h2>
                 <p className="text-muted-foreground text-sm">{new Date(createdOrder.createdAt).toLocaleString('vi-VN')}</p>
               </div>
               <div className="flex items-center justify-between p-3 bg-muted/40 rounded-lg border">
@@ -258,13 +272,13 @@ export default function OrdersPage() {
                 </Badge>
               </div>
               <div className="space-y-0.5">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Customer</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Khách hàng</p>
                 <p className="font-medium">{createdOrder.name}</p>
                 <p className="text-sm text-muted-foreground">{createdOrder.phone}</p>
                 <p className="text-sm text-muted-foreground/70">{createdOrder.address}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Items</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Sản phẩm</p>
                 <div className="divide-y rounded-lg border overflow-hidden">
                   {createdOrder.items.map((item, i) => (
                     <div key={i} className="flex items-center justify-between px-3 py-2 bg-card text-sm">
@@ -275,10 +289,27 @@ export default function OrdersPage() {
                 </div>
               </div>
               <div className="flex items-center justify-between py-2 border-t">
-                <span className="font-semibold">Total</span>
+                <span className="font-semibold">Tổng cộng</span>
                 <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{formatVND(createdOrder.totalAmount)}</span>
               </div>
-              <Button className="w-full" onClick={() => { setCreateModal('closed'); toast.success('Order created successfully!') }}>Done</Button>
+              <div className={cn(
+                'flex items-center justify-between px-3 py-2 rounded-lg border',
+                createdOrder.profit > 0 && 'bg-emerald-500/10 border-emerald-500/30',
+                createdOrder.profit < 0 && 'bg-red-500/10 border-red-500/30',
+                createdOrder.profit === 0 && 'bg-muted/40',
+              )}>
+                <span className="text-sm font-semibold">
+                  {createdOrder.profit >= 0 ? 'Lãi' : 'Lỗ'}
+                </span>
+                <span className={cn(
+                  'text-base font-bold tabular-nums',
+                  createdOrder.profit > 0 && 'text-emerald-600 dark:text-emerald-400',
+                  createdOrder.profit < 0 && 'text-red-600 dark:text-red-400',
+                )}>
+                  {formatProfit(createdOrder.profit)}
+                </span>
+              </div>
+              <Button className="w-full" onClick={() => { setCreateModal('closed'); toast.success('Đơn hàng đã tạo thành công!') }}>Xong</Button>
             </div>
           )}
         </DialogContent>
@@ -291,16 +322,16 @@ export default function OrdersPage() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Order?</AlertDialogTitle>
+            <AlertDialogTitle>Xóa đơn hàng?</AlertDialogTitle>
             <AlertDialogDescription>
-              Order <span className="font-mono font-semibold text-foreground">#{deleteTarget?._id.slice(-8).toUpperCase()}</span> for{' '}
-              <span className="font-medium text-foreground">{deleteTarget?.name}</span> will be permanently removed.
+              Đơn hàng <span className="font-mono font-semibold text-foreground">#{deleteTarget?._id.slice(-8).toUpperCase()}</span> của{' '}
+              <span className="font-medium text-foreground">{deleteTarget?.name}</span> sẽ bị xóa vĩnh viễn.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Hủy</AlertDialogCancel>
             <AlertDialogAction variant="destructive" disabled={deleteLoading} onClick={confirmDelete}>
-              {deleteLoading ? 'Deleting…' : 'Delete'}
+              {deleteLoading ? 'Đang xóa…' : 'Xóa'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

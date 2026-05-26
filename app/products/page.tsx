@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Pagination } from '@/components/ui/pagination'
 import { toast } from 'sonner'
 import { AlertCircle, Package, Plus, Search, SlidersHorizontal, TrendingUp, XCircle } from 'lucide-react'
 import { AppShell } from '@/components/AppShell'
@@ -38,6 +39,8 @@ export default function ProductsPage() {
   const [deleteTarget, setDeleteTarget]     = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading]   = useState(false)
   const [search, setSearch]                 = useState('')
+  const [page, setPage]                     = useState(1)
+  const PAGE_SIZE = 10
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
@@ -46,7 +49,7 @@ export default function ProductsPage() {
       const data = await res.json()
       setProducts(data)
     } catch {
-      toast.error('Failed to load products')
+      toast.error('Không thể tải sản phẩm')
     } finally {
       setLoading(false)
     }
@@ -54,16 +57,16 @@ export default function ProductsPage() {
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
 
-  const lowStockCount = useMemo(() => products.filter((p) => p.stock <= 5).length, [products])
+  const lowStockCount = useMemo(() => products.filter((p) => p.stock < 20).length, [products])
 
   const stats = useMemo(() => {
-    const outOfStock  = products.filter((p) => p.stock === 0).length
+    const outOfStock     = products.filter((p) => p.stock === 0).length
     const inventoryValue = products.reduce((s, p) => s + p.stock * p.sellingPrice, 0)
     return [
-      { label: 'Total Products', value: products.length.toString(), color: 'text-blue-600 dark:text-blue-400', bar: 'bg-blue-500 dark:bg-blue-400', icon: Package },
-      { label: 'Low Stock', value: lowStockCount.toString(), color: 'text-amber-600 dark:text-amber-400', bar: 'bg-amber-500 dark:bg-amber-400', icon: AlertCircle },
-      { label: 'Out of Stock', value: outOfStock.toString(), color: 'text-red-600 dark:text-red-400', bar: 'bg-red-500 dark:bg-red-400', icon: XCircle },
-      { label: 'Inventory Value', value: formatVND(inventoryValue), color: 'text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500 dark:bg-emerald-400', icon: TrendingUp },
+      { label: 'Tổng sản phẩm',  value: products.length.toString(),   color: 'text-blue-600 dark:text-blue-400',    bar: 'bg-blue-500 dark:bg-blue-400',    icon: Package },
+      { label: 'Sắp hết hàng',   value: lowStockCount.toString(),      color: 'text-amber-600 dark:text-amber-400',  bar: 'bg-amber-500 dark:bg-amber-400',  icon: AlertCircle },
+      { label: 'Hết hàng',       value: outOfStock.toString(),         color: 'text-red-600 dark:text-red-400',      bar: 'bg-red-500 dark:bg-red-400',      icon: XCircle },
+      { label: 'Giá trị kho',    value: formatVND(inventoryValue),     color: 'text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500 dark:bg-emerald-400', icon: TrendingUp },
     ]
   }, [products, lowStockCount])
 
@@ -72,6 +75,9 @@ export default function ProductsPage() {
     return !q ? products : products.filter((p) => p.name.toLowerCase().includes(q) || p._id.toLowerCase().includes(q))
   }, [products, search])
 
+  const totalPages    = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE))
+  const pagedProducts = filteredProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   const openCreate = () => { setEditingProduct(null); setFormOpen(true) }
   const openEdit   = (p: Product) => { setEditingProduct(p); setFormOpen(true) }
   const closeForm  = () => { setFormOpen(false); setEditingProduct(null) }
@@ -79,15 +85,15 @@ export default function ProductsPage() {
   const confirmDelete = async () => {
     if (!deleteTarget) return
     setDeleteLoading(true)
-    const tid = toast.loading('Deleting product…')
+    const tid = toast.loading('Đang xóa sản phẩm…')
     try {
       const res = await fetch(`/api/products/${deleteTarget}`, { method: 'DELETE' })
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed') }
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Xóa thất bại') }
       setDeleteTarget(null)
       fetchProducts()
-      toast.success('Product deleted', { id: tid })
+      toast.success('Đã xóa sản phẩm', { id: tid })
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete', { id: tid })
+      toast.error(err instanceof Error ? err.message : 'Xóa thất bại', { id: tid })
     } finally {
       setDeleteLoading(false)
     }
@@ -95,19 +101,19 @@ export default function ProductsPage() {
 
   return (
     <AppShell
-      title="Products"
-      description="Manage your inventory and pricing"
+      title="Sản phẩm"
+      description="Quản lý kho hàng và bảng giá"
       productBadge={lowStockCount || undefined}
     >
       {/* ── Header row ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-semibold">Product Inventory</h2>
-          <p className="text-sm text-muted-foreground">Manage your stock and prices</p>
+          <h2 className="text-xl font-semibold">Kho hàng</h2>
+          <p className="text-sm text-muted-foreground">Quản lý tồn kho và giá cả</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={openCreate}><Plus /> Add Product</Button>
-          <Button variant="outline"><SlidersHorizontal /> More Actions</Button>
+          <Button onClick={openCreate}><Plus /> Thêm sản phẩm</Button>
+          <Button variant="outline"><SlidersHorizontal /> Thao tác khác</Button>
         </div>
       </div>
 
@@ -132,34 +138,47 @@ export default function ProductsPage() {
       <div className="mb-4 flex gap-3">
         <div className="relative min-w-56 flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by name or ID…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input
+            placeholder="Tìm kiếm theo tên hoặc mã…"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            className="pl-9"
+          />
         </div>
         {search && (
-          <Button variant="ghost" size="sm" onClick={() => setSearch('')}>
-            <XCircle className="h-4 w-4" /> Clear
+          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setPage(1) }}>
+            <XCircle className="h-4 w-4" /> Xóa bộ lọc
           </Button>
         )}
       </div>
 
       {!loading && (
         <p className="mb-3 text-xs text-muted-foreground">
-          Showing {filteredProducts.length} of {products.length} products
+          Hiển thị {pagedProducts.length} trong {filteredProducts.length} sản phẩm
+          {filteredProducts.length !== products.length && ` (đã lọc từ ${products.length})`}
         </p>
       )}
 
       {/* ── Table ── */}
       <ProductList
-        products={filteredProducts}
+        products={pagedProducts}
         onEdit={openEdit}
         onDelete={(id) => setDeleteTarget(id)}
         loading={loading}
+      />
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        className="mt-4"
       />
 
       {/* ── Product form dialog ── */}
       <Dialog open={formOpen} onOpenChange={(open) => !open && closeForm()}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+            <DialogTitle>{editingProduct ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}</DialogTitle>
           </DialogHeader>
           <ProductForm
             key={editingProduct?._id ?? 'new'}
@@ -167,7 +186,7 @@ export default function ProductsPage() {
             onSuccess={() => {
               closeForm()
               fetchProducts()
-              toast.success(editingProduct ? 'Product updated' : 'Product created')
+              toast.success(editingProduct ? 'Đã cập nhật sản phẩm' : 'Đã thêm sản phẩm')
             }}
             onCancel={closeForm}
           />
@@ -178,15 +197,15 @@ export default function ProductsPage() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Product?</AlertDialogTitle>
+            <AlertDialogTitle>Xóa sản phẩm?</AlertDialogTitle>
             <AlertDialogDescription>
-              This product will be permanently removed from your inventory. This cannot be undone.
+              Sản phẩm này sẽ bị xóa vĩnh viễn khỏi kho hàng. Thao tác này không thể hoàn tác.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Hủy</AlertDialogCancel>
             <AlertDialogAction variant="destructive" disabled={deleteLoading} onClick={confirmDelete}>
-              {deleteLoading ? 'Deleting…' : 'Delete'}
+              {deleteLoading ? 'Đang xóa…' : 'Xóa'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

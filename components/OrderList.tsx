@@ -37,8 +37,8 @@ const statusConfig: Record<string, { dot: string; badge: string }> = {
 }
 
 function Initials({ name }: { name?: string }) {
-  const safe  = name?.trim() ?? ''
-  const parts = safe.split(' ')
+  const safe    = name?.trim() ?? ''
+  const parts   = safe.split(' ')
   const letters = (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')
   return (
     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold uppercase">
@@ -68,24 +68,24 @@ export default function OrderList({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead className="pl-5 w-64">Product Name</TableHead>
-            <TableHead className="w-48">Customer Name</TableHead>
-            <TableHead className="w-40">Order ID</TableHead>
-            <TableHead className="w-36">Amount</TableHead>
-            <TableHead className="w-36">Status</TableHead>
-            <TableHead className="text-center pr-5 w-32">Action</TableHead>
+            <TableHead className="pl-5 w-64">Tên sản phẩm</TableHead>
+            <TableHead className="w-48">Khách hàng</TableHead>
+            <TableHead className="w-40">Mã đơn hàng</TableHead>
+            <TableHead className="w-36">Số tiền</TableHead>
+            <TableHead className="w-36">Trạng thái</TableHead>
+            <TableHead className="text-center pr-5 w-32">Thao tác</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {orders.map((order) => {
             const isCompleted = order.status === statusOrders.COMPLETED
-            const cfg = statusConfig[order.status] ?? { dot: 'bg-slate-400', badge: 'bg-slate-100 text-slate-600 border-slate-200' }
-            const firstItem = order.items[0]
-            const extraItems = order.items.length - 1
+            const cfg         = statusConfig[order.status] ?? { dot: 'bg-slate-400', badge: 'bg-slate-100 text-slate-600 border-slate-200' }
+            const firstItem   = order.items[0]
+            const extraItems  = order.items.length - 1
 
             return (
               <TableRow key={order._id} className="group">
-                {/* Product / Items */}
+                {/* Sản phẩm */}
                 <TableCell className="pl-5 py-3">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border bg-muted">
@@ -97,29 +97,25 @@ export default function OrderList({
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {extraItems > 0
-                          ? `+${extraItems} more item${extraItems > 1 ? 's' : ''}`
-                          : `${firstItem?.quantity ?? 1} unit${(firstItem?.quantity ?? 1) > 1 ? 's' : ''}`}
+                          ? `+${extraItems} sản phẩm khác`
+                          : `${firstItem?.quantity ?? 1} cái`}
                       </p>
                     </div>
                   </div>
                 </TableCell>
 
-                {/* Customer */}
+                {/* Khách hàng */}
                 <TableCell className="py-3">
                   <div className="flex items-center gap-2.5">
                     <Initials name={order.name} />
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold max-w-32">
-                        {order.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate max-w-32">
-                        {order.phone}
-                      </p>
+                      <p className="truncate text-sm font-semibold max-w-32">{order.name}</p>
+                      <p className="text-xs text-muted-foreground truncate max-w-32">{order.phone}</p>
                     </div>
                   </div>
                 </TableCell>
 
-                {/* Order ID */}
+                {/* Mã đơn hàng */}
                 <TableCell className="py-3">
                   <p className="font-mono text-sm font-semibold text-foreground">
                     #{order._id.slice(-10).toUpperCase()}
@@ -129,51 +125,44 @@ export default function OrderList({
                   </p>
                 </TableCell>
 
-                {/* Amount */}
+                {/* Số tiền */}
                 <TableCell className="py-3">
                   <p className="text-sm font-bold">{formatVND(order.totalAmount)}</p>
                 </TableCell>
 
-                {/* Status */}
+                {/* Trạng thái */}
                 <TableCell className="py-3">
-                  <Badge
-                    variant="outline"
-                    className={cn('gap-1.5 font-medium', cfg.badge)}
-                  >
+                  <Badge variant="outline" className={cn('gap-1.5 font-medium', cfg.badge)}>
                     <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', cfg.dot)} />
                     {order.status}
                   </Badge>
                 </TableCell>
 
-                {/* Actions */}
+                {/* Thao tác */}
                 <TableCell className="pr-5 py-3">
                   <div className="flex items-center justify-center gap-1">
                     <Button
-                      variant="outline"
-                      size="sm"
+                      variant="outline" size="sm"
                       disabled={isCompleted}
                       onClick={() => onEdit(order)}
                       className="h-7 px-2 text-xs"
                     >
-                      <Pencil className="h-3 w-3" />
-                      Edit
+                      <Pencil className="h-3 w-3" /> Sửa
                     </Button>
                     <Button
-                      variant="ghost"
-                      size="icon-sm"
+                      variant="ghost" size="icon-sm"
                       disabled={isCompleted}
                       onClick={() => onComplete(order)}
-                      title="Mark completed"
+                      title="Đánh dấu hoàn thành"
                       className="hover:text-green-600 hover:bg-emerald-500/10 dark:hover:text-emerald-400"
                     >
                       <CheckCheck />
                     </Button>
                     <Button
-                      variant="ghost"
-                      size="icon-sm"
+                      variant="ghost" size="icon-sm"
                       disabled={isCompleted}
                       onClick={() => onDelete(order)}
-                      title="Delete"
+                      title="Xóa"
                       className="hover:text-destructive hover:bg-destructive/10"
                     >
                       <Trash2 />
@@ -187,7 +176,7 @@ export default function OrderList({
           {orders.length === 0 && (
             <TableRow>
               <TableCell colSpan={6} className="py-16 text-center text-muted-foreground">
-                No orders found.
+                Không tìm thấy đơn hàng.
               </TableCell>
             </TableRow>
           )}

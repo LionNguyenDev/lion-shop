@@ -45,13 +45,13 @@ interface CurrentUser {
 }
 
 const baseNav: NavItem[] = [
-  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { label: 'Orders', href: '/orders', icon: ShoppingCart },
-  { label: 'Products', href: '/products', icon: Package },
+  { label: 'Tổng quan',   href: '/',         icon: LayoutDashboard },
+  { label: 'Đơn hàng',   href: '/orders',   icon: ShoppingCart },
+  { label: 'Sản phẩm',   href: '/products', icon: Package },
 ]
 
 const systemNav: NavItem[] = [
-  { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Cài đặt', href: '/settings', icon: Settings },
 ]
 
 function NavLink({ item, active }: { item: NavItem; active: boolean }) {
@@ -98,9 +98,9 @@ export function Sidebar({ orderBadge, productBadge }: SidebarProps) {
   }, [])
 
   const handleSignOut = async () => {
-    const tid = toast.loading('Signing out…')
+    const tid = toast.loading('Đang đăng xuất…')
     await fetch('/api/auth/signout', { method: 'POST' })
-    toast.success('Signed out', { id: tid })
+    toast.success('Đã đăng xuất', { id: tid })
     router.push('/landing')
     router.refresh()
   }
@@ -108,7 +108,7 @@ export function Sidebar({ orderBadge, productBadge }: SidebarProps) {
   const mainNav: NavItem[] = baseNav.map((item) => ({
     ...item,
     badge:
-      item.href === '/orders' ? orderBadge
+      item.href === '/orders'   ? orderBadge
       : item.href === '/products' ? productBadge
       : item.badge,
   }))
@@ -124,7 +124,7 @@ export function Sidebar({ orderBadge, productBadge }: SidebarProps) {
         </div>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold leading-none">Lion Shop</p>
-          <p className="mt-0.5 text-[10px] text-muted-foreground">Admin Panel</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">Quản trị</p>
         </div>
       </div>
 
@@ -132,7 +132,7 @@ export function Sidebar({ orderBadge, productBadge }: SidebarProps) {
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
         <div className="space-y-1">
           <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-            Main
+            Chính
           </p>
           {mainNav.map((item) => (
             <NavLink
@@ -145,7 +145,7 @@ export function Sidebar({ orderBadge, productBadge }: SidebarProps) {
 
         <div className="space-y-1">
           <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-            System
+            Hệ thống
           </p>
           {systemNav.map((item) => (
             <NavLink
@@ -175,15 +175,15 @@ export function Sidebar({ orderBadge, productBadge }: SidebarProps) {
               <p className="truncate text-xs font-semibold">{user?.name ?? '—'}</p>
               <p className="truncate text-[10px] text-muted-foreground">
                 @{user?.username ?? '—'}
-                {user?.role === 'admin' && <span className="ml-1 text-violet-500">· admin</span>}
+                {user?.role === 'admin' && <span className="ml-1 text-violet-500">· quản trị</span>}
               </p>
             </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" side="top" className="w-52">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel>Tài khoản</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
-              <LogOut className="h-4 w-4" /> Sign out
+              <LogOut className="h-4 w-4" /> Đăng xuất
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

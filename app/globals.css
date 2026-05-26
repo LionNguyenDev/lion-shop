@@ -155,3 +155,9 @@
 .animate-fade-up      { animation: fade-up 0.7s ease-out backwards; }
 .animate-wave         { animation: wave 2.5s ease-in-out infinite; transform-origin: 70% 70%; }
 .bg-gradient-animated { background-size: 300% 300%; animation: gradient-shift 12s ease infinite; }
+
+/* Review carousel progress bar */
+@keyframes review-progress {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}

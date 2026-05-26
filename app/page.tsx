@@ -11,11 +11,12 @@ import {
   Wallet,
 } from 'lucide-react'
 import { AppShell } from '@/components/AppShell'
+import { StatsSection } from '@/components/dashboard/StatsSection'
 import { formatVND } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Order, Product, statusOrders } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -64,7 +65,7 @@ function StatCard({
         </div>
         {href && (
           <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-muted-foreground group-hover:text-foreground transition-colors">
-            View all <ArrowRight className="h-3 w-3 transition-transform duration-200 group-hover:translate-x-0.5" />
+            Xem tất cả <ArrowRight className="h-3 w-3 transition-transform duration-200 group-hover:translate-x-0.5" />
           </div>
         )}
       </CardContent>
@@ -132,9 +133,9 @@ function RecentOrders({ orders, loading }: { orders: Order[]; loading: boolean }
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
-        <CardTitle className="text-sm font-semibold">Recent Orders</CardTitle>
+        <CardTitle className="text-sm font-semibold">Đơn hàng gần đây</CardTitle>
         <Link href="/orders" className={buttonVariants({ variant: 'ghost', size: 'sm' }) + ' text-xs h-7'}>
-          View all <ArrowRight className="h-3 w-3" />
+          Xem tất cả <ArrowRight className="h-3 w-3" />
         </Link>
       </CardHeader>
       <CardContent className="p-0">
@@ -145,7 +146,7 @@ function RecentOrders({ orders, loading }: { orders: Order[]; loading: boolean }
         ) : recent.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
             <ShoppingCart className="h-8 w-8 opacity-30" />
-            <p className="text-sm">No orders yet</p>
+            <p className="text-sm">Chưa có đơn hàng</p>
           </div>
         ) : (
           <div className="divide-y">
@@ -180,14 +181,14 @@ function RecentOrders({ orders, loading }: { orders: Order[]; loading: boolean }
 
 /* ── Low stock list ── */
 function LowStockList({ products, loading }: { products: Product[]; loading: boolean }) {
-  const low = products.filter((p) => p.stock <= 5).slice(0, 6)
+  const low = products.filter((p) => p.stock < 20).slice(0, 6)
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
-        <CardTitle className="text-sm font-semibold">Low Stock Alerts</CardTitle>
+        <CardTitle className="text-sm font-semibold">Cảnh báo tồn kho thấp</CardTitle>
         <Link href="/products" className={buttonVariants({ variant: 'ghost', size: 'sm' }) + ' text-xs h-7'}>
-          Manage <ArrowRight className="h-3 w-3" />
+          Quản lý <ArrowRight className="h-3 w-3" />
         </Link>
       </CardHeader>
       <CardContent className="p-0">
@@ -198,7 +199,7 @@ function LowStockList({ products, loading }: { products: Product[]; loading: boo
         ) : low.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
             <Package className="h-8 w-8 opacity-30" />
-            <p className="text-sm">All products well stocked</p>
+            <p className="text-sm">Tất cả sản phẩm đủ hàng</p>
           </div>
         ) : (
           <div className="divide-y">
@@ -217,10 +218,12 @@ function LowStockList({ products, loading }: { products: Product[]; loading: boo
                     'shrink-0 text-xs font-bold',
                     p.stock === 0
                       ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30'
-                      : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 dark:border-amber-500/30',
+                      : p.stock < 10
+                        ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30'
+                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 dark:border-amber-500/30',
                   )}
                 >
-                  {p.stock === 0 ? 'Out' : `${p.stock} left`}
+                  {p.stock === 0 ? 'Hết hàng' : `Còn ${p.stock}`}
                 </Badge>
               </div>
             ))}
@@ -249,37 +252,37 @@ export default function DashboardPage() {
     [data.orders],
   )
   const unpaidCount  = data.orders.filter((o) => o.status === statusOrders.UNPAID).length
-  const lowStockCount = data.products.filter((p) => p.stock <= 5).length
+  const lowStockCount = data.products.filter((p) => p.stock < 20).length
 
   const statCards = [
     {
-      label: 'Total Revenue',
+      label: 'Tổng doanh thu',
       value: loading ? '—' : formatVND(revenue),
-      sub: 'All orders combined',
+      sub: 'Tổng tất cả đơn hàng',
       icon: Wallet,
       href: '/orders',
       accent: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
     },
     {
-      label: 'Total Orders',
+      label: 'Tổng đơn hàng',
       value: loading ? '—' : data.orders.length.toLocaleString('vi-VN'),
-      sub: `${unpaidCount} unpaid`,
+      sub: `${unpaidCount} chưa thanh toán`,
       icon: ShoppingCart,
       href: '/orders',
       accent: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 dark:border-blue-500/30',
     },
     {
-      label: 'Total Products',
+      label: 'Tổng sản phẩm',
       value: loading ? '—' : data.products.length.toLocaleString('vi-VN'),
-      sub: `${lowStockCount} low stock`,
+      sub: `${lowStockCount} sắp hết hàng`,
       icon: Package,
       href: '/products',
       accent: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 dark:border-purple-500/30',
     },
     {
-      label: 'Stock Alerts',
+      label: 'Cảnh báo tồn kho',
       value: loading ? '—' : lowStockCount,
-      sub: lowStockCount > 0 ? 'Needs restocking' : 'All good',
+      sub: lowStockCount > 0 ? 'Cần nhập thêm hàng' : 'Tất cả ổn',
       icon: AlertTriangle,
       href: '/products',
       accent:
@@ -288,9 +291,9 @@ export default function DashboardPage() {
           : 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20 dark:border-zinc-500/30',
     },
     {
-      label: 'Inventory Value',
+      label: 'Giá trị kho hàng',
       value: loading ? '—' : formatVND(data.products.reduce((s, p) => s + p.stock * p.sellingPrice, 0)),
-      sub: 'At selling price',
+      sub: 'Theo giá bán',
       icon: TrendingUp,
       accent: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 dark:border-amber-500/30',
     },
@@ -298,8 +301,8 @@ export default function DashboardPage() {
 
   return (
     <AppShell
-      title="Dashboard"
-      description="Welcome back — here's your shop overview"
+      title="Tổng quan"
+      description="Chào mừng trở lại — đây là tổng quan cửa hàng của bạn"
       orderBadge={unpaidCount || undefined}
       productBadge={lowStockCount || undefined}
     >
@@ -310,12 +313,15 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      {/* Stats section — server-side aggregated, time-range KPIs + chart */}
+      <StatsSection />
+
       {/* Mid row */}
       <div className="mt-6 grid gap-6 lg:grid-cols-5">
         {/* Order status distribution */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-3 border-b">
-            <CardTitle className="text-sm font-semibold">Order Status</CardTitle>
+            <CardTitle className="text-sm font-semibold">Trạng thái đơn hàng</CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
             {loading ? (
@@ -323,7 +329,7 @@ export default function DashboardPage() {
                 {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-5 w-full" />)}
               </div>
             ) : data.orders.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">No orders yet</p>
+              <p className="py-6 text-center text-sm text-muted-foreground">Chưa có đơn hàng</p>
             ) : (
               <StatusDistribution orders={data.orders} />
             )}

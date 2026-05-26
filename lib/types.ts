@@ -14,6 +14,7 @@ export interface OrderItem {
   name: string
   quantity: number
   price: number
+  originalPrice: number
 }
 
 export const statusOrders = {
@@ -34,7 +35,17 @@ export interface Order {
   _id: string
   items: OrderItem[]
   totalAmount: number
+  profit: number
   status: statusOrders
+  name: string
+  phone: string
+  address: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Customer {
+  _id: string
   name: string
   phone: string
   address: string

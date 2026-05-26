@@ -23,9 +23,9 @@ export async function POST(request: Request) {
     if (existing)
       return NextResponse.json({ error: 'Username already taken' }, { status: 409 })
 
-    // First user becomes admin; subsequent default to staff
+    // First user becomes admin; subsequent default to user
     const userCount = await User.countDocuments()
-    const role = userCount === 0 ? 'admin' : 'staff'
+    const role = userCount === 0 ? 'admin' : 'user'
 
     const hashed = await hashPassword(password)
     const user = await User.create({ name, username, password: hashed, role })

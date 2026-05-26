@@ -27,12 +27,12 @@ export default function SignInPage() {
         body: JSON.stringify({ username, password }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Sign-in failed')
-      toast.success(`Welcome back, ${data.user.name}! 👋`)
+      if (!res.ok) throw new Error(data.error || 'Đăng nhập thất bại')
+      toast.success(`Chào mừng trở lại, ${data.user.name}! 👋`)
       router.push('/')
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign-in failed')
+      setError(err instanceof Error ? err.message : 'Đăng nhập thất bại')
     } finally {
       setLoading(false)
     }
@@ -58,9 +58,9 @@ export default function SignInPage() {
 
         <div className="rounded-3xl border bg-white/80 p-7 shadow-2xl shadow-violet-500/10 backdrop-blur-xl dark:bg-white/5">
           <div className="mb-6 text-center">
-            <h1 className="text-2xl font-bold">Welcome back 👋</h1>
+            <h1 className="text-2xl font-bold">Chào mừng trở lại 👋</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Sign in to your shop dashboard
+              Đăng nhập vào trang quản trị
             </p>
           </div>
 
@@ -72,12 +72,12 @@ export default function SignInPage() {
             )}
 
             <div className="space-y-1.5">
-              <Label htmlFor="username"><User className="h-3.5 w-3.5" /> Username</Label>
+              <Label htmlFor="username"><User className="h-3.5 w-3.5" /> Tên đăng nhập</Label>
               <Input
                 id="username"
                 autoComplete="username"
                 required
-                placeholder="your-username"
+                placeholder="ten-dang-nhap"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="h-10"
@@ -85,7 +85,7 @@ export default function SignInPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password"><Lock className="h-3.5 w-3.5" /> Password</Label>
+              <Label htmlFor="password"><Lock className="h-3.5 w-3.5" /> Mật khẩu</Label>
               <Input
                 id="password"
                 type="password"
@@ -103,21 +103,21 @@ export default function SignInPage() {
               disabled={loading}
               className="h-10 w-full bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90 text-white shadow-lg shadow-violet-500/30 transition-all hover:scale-[1.02]"
             >
-              {loading ? 'Signing in…' : <>Sign in <ArrowRight className="h-4 w-4" /></>}
+              {loading ? 'Đang đăng nhập…' : <>Đăng nhập <ArrowRight className="h-4 w-4" /></>}
             </Button>
           </form>
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
-            New here?{' '}
+            Chưa có tài khoản?{' '}
             <Link href="/signup" className="font-semibold text-violet-600 hover:underline dark:text-violet-400">
-              Create an account
+              Đăng ký ngay
             </Link>
           </div>
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
           <Link href="/landing" className={buttonVariants({ variant: 'ghost', size: 'sm' }) + ' text-xs'}>
-            ← Back to home
+            ← Về trang chủ
           </Link>
         </p>
       </div>

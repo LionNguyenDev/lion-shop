@@ -16,6 +16,7 @@ export async function PATCH(request: Request, { params }: Params) {
       phone: body.phone?.trim(),
       address: body.address?.trim(),
       status: body.status,
+      items: Array.isArray(body.items) ? body.items : undefined,
     })
 
     if (!updated) {

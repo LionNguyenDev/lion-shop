@@ -50,9 +50,9 @@ export default function ProductList({
           <Package className="w-8 h-8 text-muted-foreground/40" />
         </div>
         <div className="text-center">
-          <p className="text-sm font-medium">No products yet</p>
+          <p className="text-sm font-medium">Chưa có sản phẩm</p>
           <p className="text-xs mt-0.5 text-muted-foreground/70">
-            Add your first product to get started
+            Thêm sản phẩm đầu tiên để bắt đầu
           </p>
         </div>
       </div>
@@ -65,11 +65,11 @@ export default function ProductList({
         <TableHeader>
           <TableRow className="bg-muted/40">
             <TableHead className="pl-4 w-16" />
-            <TableHead>Product</TableHead>
-            <TableHead className="text-right">Cost</TableHead>
-            <TableHead className="text-right">Price</TableHead>
-            <TableHead className="text-right">Stock</TableHead>
-            <TableHead className="text-right pr-4">Actions</TableHead>
+            <TableHead>Sản phẩm</TableHead>
+            <TableHead className="text-right">Giá vốn</TableHead>
+            <TableHead className="text-right">Giá bán</TableHead>
+            <TableHead className="text-right">Tồn kho</TableHead>
+            <TableHead className="text-right pr-4">Thao tác</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -82,11 +82,12 @@ export default function ProductList({
                     100
                   ).toFixed(0)
                 : null
-            const isLowStock = product.stock <= 5
+            const isDanger  = product.stock < 10
+            const isWarning = product.stock < 20
 
             return (
               <TableRow key={product._id}>
-                {/* Thumbnail */}
+                {/* Ảnh */}
                 <TableCell className="pl-4">
                   <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border bg-muted">
                     {product.image ? (
@@ -105,26 +106,22 @@ export default function ProductList({
                   </div>
                 </TableCell>
 
-                {/* Name + ID */}
+                {/* Tên + ID */}
                 <TableCell>
-                  <p className="font-semibold text-sm truncate max-w-48">
-                    {product.name}
-                  </p>
+                  <p className="font-semibold text-sm truncate max-w-48">{product.name}</p>
                   <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
                     #{product._id.slice(-6).toUpperCase()}
                   </p>
                 </TableCell>
 
-                {/* Cost */}
+                {/* Giá vốn */}
                 <TableCell className="text-right text-sm text-muted-foreground">
                   {formatVND(product.originalPrice)}
                 </TableCell>
 
-                {/* Selling price + margin */}
+                {/* Giá bán + margin */}
                 <TableCell className="text-right">
-                  <p className="text-sm font-semibold">
-                    {formatVND(product.sellingPrice)}
-                  </p>
+                  <p className="text-sm font-semibold">{formatVND(product.sellingPrice)}</p>
                   {margin !== null && (
                     <span
                       className={cn(
@@ -140,39 +137,39 @@ export default function ProductList({
                   )}
                 </TableCell>
 
-                {/* Stock */}
+                {/* Tồn kho */}
                 <TableCell className="text-right">
                   <Badge
                     variant="outline"
                     className={cn(
                       'gap-1',
-                      isLowStock
+                      isDanger
                         ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30'
-                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
+                        : isWarning
+                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 dark:border-amber-500/30'
+                          : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
                     )}
                   >
-                    {isLowStock && <AlertCircle className="h-3 w-3" />}
+                    {isWarning && <AlertCircle className="h-3 w-3" />}
                     {product.stock}
                   </Badge>
                 </TableCell>
 
-                {/* Actions */}
+                {/* Thao tác */}
                 <TableCell className="pr-4">
                   <div className="flex items-center justify-end gap-1">
                     <Button
-                      variant="ghost"
-                      size="icon-sm"
+                      variant="ghost" size="icon-sm"
                       onClick={() => onEdit(product)}
-                      title="Edit product"
+                      title="Chỉnh sửa sản phẩm"
                       className="hover:text-blue-600 hover:bg-blue-500/10 dark:hover:text-blue-400"
                     >
                       <Edit />
                     </Button>
                     <Button
-                      variant="ghost"
-                      size="icon-sm"
+                      variant="ghost" size="icon-sm"
                       onClick={() => onDelete(product._id)}
-                      title="Delete product"
+                      title="Xóa sản phẩm"
                       className="hover:text-destructive hover:bg-destructive/10"
                     >
                       <Trash2 />
@@ -185,13 +182,18 @@ export default function ProductList({
         </TableBody>
       </Table>
 
-      {/* Footer count */}
+      {/* Footer */}
       <div className="border-t bg-muted/30 px-4 py-2">
         <p className="text-xs text-muted-foreground">
-          {products.length} {products.length === 1 ? 'product' : 'products'}
-          {products.filter((p) => p.stock <= 5).length > 0 && (
+          {products.length} sản phẩm
+          {products.filter((p) => p.stock < 10).length > 0 && (
             <span className="ml-2 text-red-500">
-              · {products.filter((p) => p.stock <= 5).length} low stock
+              · {products.filter((p) => p.stock < 10).length} nguy hiểm
+            </span>
+          )}
+          {products.filter((p) => p.stock >= 10 && p.stock < 20).length > 0 && (
+            <span className="ml-2 text-amber-500">
+              · {products.filter((p) => p.stock >= 10 && p.stock < 20).length} sắp hết
             </span>
           )}
         </p>

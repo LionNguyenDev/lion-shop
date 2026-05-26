@@ -35,12 +35,12 @@ function ThemeToggle() {
       <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
         <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
         <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-        <span className="sr-only">Toggle theme</span>
+        <span className="sr-only">Đổi giao diện</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme('light')}>Light</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('dark')}>Dark</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('system')}>System</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme('light')}>Sáng</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme('dark')}>Tối</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme('system')}>Hệ thống</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -50,9 +50,9 @@ export function Header({ title, description, orderBadge, productBadge }: HeaderP
   const router = useRouter()
 
   const handleSignOut = async () => {
-    const tid = toast.loading('Signing out…')
+    const tid = toast.loading('Đang đăng xuất…')
     await fetch('/api/auth/signout', { method: 'POST' })
-    toast.success('Signed out', { id: tid })
+    toast.success('Đã đăng xuất', { id: tid })
     router.push('/landing')
     router.refresh()
   }
@@ -90,7 +90,7 @@ export function Header({ title, description, orderBadge, productBadge }: HeaderP
         </Button>
         <ThemeToggle />
 
-        {/* Go to landing page */}
+        {/* Trang chủ */}
         <Tooltip>
           <TooltipTrigger
             render={
@@ -101,12 +101,12 @@ export function Header({ title, description, orderBadge, productBadge }: HeaderP
             }
           >
             <Store className="h-4 w-4" />
-            <span className="sr-only">Landing page</span>
+            <span className="sr-only">Trang chủ</span>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Landing page</TooltipContent>
+          <TooltipContent side="bottom">Trang chủ</TooltipContent>
         </Tooltip>
 
-        {/* Sign out */}
+        {/* Đăng xuất */}
         <Tooltip>
           <TooltipTrigger
             render={
@@ -119,9 +119,9 @@ export function Header({ title, description, orderBadge, productBadge }: HeaderP
             }
           >
             <LogOut className="h-4 w-4" />
-            <span className="sr-only">Sign out</span>
+            <span className="sr-only">Đăng xuất</span>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Sign out</TooltipContent>
+          <TooltipContent side="bottom">Đăng xuất</TooltipContent>
         </Tooltip>
       </div>
     </header>

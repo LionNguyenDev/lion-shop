@@ -1,0 +1,93 @@
+/* ─── Mock review data ─── */
+export const reviews = [
+  {
+    id: 1,
+    name: 'Nguyễn Khánh Linh',
+    avatar: '🌸',
+    rating: 5,
+    text: 'Shop quá xịn luôn! Mỹ phẩm dùng cực thích, da mình hợp ngay từ lần đầu 😍 Đóng gói siêu cẩn thận và ship nhanh nữa.',
+    product: 'Kem chống nắng',
+    date: '20/05/2026',
+  },
+  {
+    id: 2,
+    name: 'Trần Minh Khôi',
+    avatar: '🦋',
+    rating: 5,
+    text: 'Mình mua tặng người yêu mà cô ấy mê luôn 😂 Sản phẩm thơm, chính hãng, dùng rất ổn áp. Shop tư vấn nhiệt tình.',
+    product: 'Son tint',
+    date: '18/05/2026',
+  },
+  {
+    id: 3,
+    name: 'Lê Bảo Ngọc',
+    avatar: '🌺',
+    rating: 5,
+    text: 'Đây là shop mỹ phẩm mình tin tưởng nhất luôn ✨ Giá hợp lý mà chất lượng cực ổn. Sẽ còn quay lại dài dài!',
+    product: 'Serum dưỡng da',
+    date: '15/05/2026',
+  },
+  {
+    id: 4,
+    name: 'Phạm Gia Huy',
+    avatar: '🎯',
+    rating: 5,
+    text: 'Hàng y hình, check mã đầy đủ nên rất yên tâm. Bạn gái mình dùng xong khen suốt 😄 Recommend mọi người nên thử!',
+    product: 'Set skincare',
+    date: '12/05/2026',
+  },
+  {
+    id: 5,
+    name: 'Vũ Khánh Ly',
+    avatar: '🌙',
+    rating: 5,
+    text: 'Mình khá kỹ khi mua mỹ phẩm online nhưng shop làm mình bất ngờ luôn 💕 Chất lượng tốt, tư vấn có tâm, giao hàng siêu nhanh.',
+    product: 'Phấn nước cushion',
+    date: '10/05/2026',
+  },
+  {
+    id: 6,
+    name: 'Đặng Thị Thu',
+    avatar: '🍀',
+    rating: 5,
+    text: 'Giá siêu hợp lý mà sản phẩm dùng rất thích. Mình đã giới thiệu cho bạn bè và ai cũng feedback tốt hết 🥰',
+    product: 'Mặt nạ dưỡng da',
+    date: '08/05/2026',
+  },
+]
+
+/* ─── Contact links ─── */
+export const contacts = [
+  {
+    name: 'Facebook',
+    icon: '📘',
+    handle: 'Lion Shop Cosmetics',
+    href: 'https://facebook.com',
+    color: 'from-blue-500 to-blue-600',
+    shadow: 'shadow-blue-500/30',
+  },
+  {
+    name: 'Threads',
+    icon: '🧵',
+    handle: '@lionbeauty',
+    href: 'https://threads.net',
+    color: 'from-slate-700 to-slate-900',
+    shadow: 'shadow-slate-500/30',
+  },
+  {
+    name: 'Zalo',
+    icon: '💬',
+    handle: 'Lion Shop Beauty',
+    href: 'https://zalo.me',
+    color: 'from-sky-500 to-blue-500',
+    shadow: 'shadow-sky-500/30',
+  },
+  {
+    name: 'Instagram',
+    icon: '📸',
+    handle: '@lion.cosmetics',
+    href: 'https://instagram.com',
+    color: 'from-pink-500 via-rose-500 to-orange-400',
+    shadow: 'shadow-pink-500/30',
+  },
+]

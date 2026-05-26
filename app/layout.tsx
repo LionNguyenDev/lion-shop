@@ -7,8 +7,8 @@ const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Lion Shop — Admin',
-  description: 'Warehouse & Order Management',
+  title: 'Lion Shop',          // ← đổi tên hiển thị trên tab ở đây
+  description: 'Lion Shop — Thiên đường mua sắm dễ thương',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
