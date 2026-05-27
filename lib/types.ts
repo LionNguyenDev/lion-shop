@@ -30,6 +30,19 @@ export const statusOrders = {
   FAILED: 'Failed',
 } as const
 
+export const statusOrdersVN: Record<string, string> = {
+  [statusOrders.UNPAID]: 'Chưa thanh toán',
+  [statusOrders.PAID]: 'Đã thanh toán',
+  [statusOrders.PROCESSING]: 'Đang xử lý',
+  [statusOrders.PENDING]: 'Chờ xử lý',
+  [statusOrders.COMPLETED]: 'Hoàn thành',
+  [statusOrders.CANCELLED]: 'Đã hủy',
+  [statusOrders.SHIPPED]: 'Đã gửi',
+  [statusOrders.DELIVERED]: 'Đã giao',
+  [statusOrders.RETURNED]: 'Trả lại',
+  [statusOrders.FAILED]: 'Thất bại',
+}
+
 export type statusOrders = (typeof statusOrders)[keyof typeof statusOrders]
 export interface Order {
   _id: string
@@ -49,6 +62,20 @@ export interface Customer {
   name: string
   phone: string
   address: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface OrderNoteProduct {
+  name: string
+  quantity: number
+}
+
+export interface OrderNote {
+  _id: string
+  orderCode: string
+  products: OrderNoteProduct[]
+  note: string
   createdAt: string
   updatedAt: string
 }

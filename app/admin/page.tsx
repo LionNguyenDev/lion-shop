@@ -14,7 +14,7 @@ import { AppShell } from '@/components/AppShell'
 import { StatsSection } from '@/components/dashboard/StatsSection'
 import { formatVND } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { Order, Product, statusOrders } from '@/lib/types'
+import { Order, Product, statusOrders, statusOrdersVN } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -165,7 +165,7 @@ function RecentOrders({ orders, loading }: { orders: Order[]; loading: boolean }
                   variant="outline"
                   className={cn('text-[10px] font-semibold shrink-0', STATUS_BADGE[o.status] ?? 'bg-slate-100 text-slate-600')}
                 >
-                  {o.status}
+                  {statusOrdersVN[o.status] || o.status}
                 </Badge>
                 <p className="shrink-0 text-sm font-semibold tabular-nums">
                   {formatVND(o.totalAmount)}

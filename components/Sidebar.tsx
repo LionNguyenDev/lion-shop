@@ -11,6 +11,7 @@ import {
   Package,
   Settings,
   ShoppingCart,
+  StickyNote,
   Store,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -45,9 +46,10 @@ interface CurrentUser {
 }
 
 const baseNav: NavItem[] = [
-  { label: 'Tổng quan',   href: '/admin',            icon: LayoutDashboard },
-  { label: 'Đơn hàng',   href: '/admin/orders',   icon: ShoppingCart },
-  { label: 'Sản phẩm',   href: '/admin/products', icon: Package },
+  { label: 'Tổng quan',   href: '/admin',           icon: LayoutDashboard },
+  { label: 'Đơn hàng',   href: '/admin/orders',    icon: ShoppingCart },
+  { label: 'Sản phẩm',   href: '/admin/products',  icon: Package },
+  { label: 'Note đơn',   href: '/admin/notes',     icon: StickyNote },
 ]
 
 const systemNav: NavItem[] = [
@@ -134,13 +136,23 @@ export function Sidebar({ orderBadge, productBadge }: SidebarProps) {
           <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
             Chính
           </p>
-          {mainNav.map((item) => (
-            <NavLink
-              key={item.href}
-              item={item}
-              active={item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)}
-            />
-          ))}
+          {mainNav.map((item) => {
+            let active = false
+            if (item.href === '/admin') {
+              // Exact match for /admin dashboard
+              active = pathname === '/admin' || pathname === '/admin/'
+            } else {
+              // Match for /admin/orders, /admin/products, etc.
+              active = pathname === item.href || pathname.startsWith(item.href + '/')
+            }
+            return (
+              <NavLink
+                key={item.href}
+                item={item}
+                active={active}
+              />
+            )
+          })}
         </div>
 
         <div className="space-y-1">

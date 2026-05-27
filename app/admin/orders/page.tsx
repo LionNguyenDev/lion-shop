@@ -8,8 +8,9 @@ import { AppShell } from '@/components/AppShell'
 import OrderList from '@/components/OrderList'
 import OrderForm from '@/components/OrderForm'
 import OrderEditModal from '@/components/OrderEditModal'
+import OrderDetailModal from '@/components/OrderDetailModal'
 import { formatProfit, formatVND } from '@/lib/format'
-import { Order, statusOrders } from '@/lib/types'
+import { Order, statusOrders, statusOrdersVN } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -42,7 +43,7 @@ import {
 
 type CreateModal = 'closed' | 'form' | 'success'
 
-const ALL_STATUSES = Object.values(statusOrders)
+const PAYMENT_STATUSES = [statusOrders.PAID, statusOrders.UNPAID]
 
 const statusBadgeClass: Record<string, string> = {
   [statusOrders.UNPAID]:     'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30',
@@ -62,6 +63,7 @@ export default function OrdersPage() {
   const [search, setSearch]               = useState('')
   const [statusFilter, setStatusFilter]   = useState('')
   const [page, setPage]                   = useState(1)
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const PAGE_SIZE = 10
 
   const fetchOrders = useCallback(async () => {
@@ -76,7 +78,9 @@ export default function OrdersPage() {
     }
   }, [])
 
-  useEffect(() => { fetchOrders() }, [fetchOrders])
+  useEffect(() => {
+    fetchOrders()
+  }, [fetchOrders])
 
   const unpaidCount = useMemo(
     () => orders.filter((o) => o.status === statusOrders.UNPAID).length,
@@ -208,11 +212,11 @@ export default function OrdersPage() {
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v ?? ''); setPage(1) }}>
           <SelectTrigger className="w-44">
             <ListOrdered className="h-4 w-4 text-muted-foreground" />
-            <SelectValue placeholder="Tất cả trạng thái" />
+            <SelectValue placeholder="Trạng thái thanh toán" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Tất cả trạng thái</SelectItem>
-            {ALL_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            <SelectItem value="">Tất cả</SelectItem>
+            {PAYMENT_STATUSES.map((s) => <SelectItem key={s} value={s}>{statusOrdersVN[s]}</SelectItem>)}
           </SelectContent>
         </Select>
         {(search || statusFilter) && (
@@ -236,6 +240,7 @@ export default function OrdersPage() {
         onEdit={setEditingOrder}
         onDelete={setDeleteTarget}
         onComplete={handleComplete}
+        onRowClick={setSelectedOrder}
       />
 
       <Pagination
@@ -336,6 +341,9 @@ export default function OrdersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Order Detail Modal ── */}
+      <OrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
     </AppShell>
   )
 }

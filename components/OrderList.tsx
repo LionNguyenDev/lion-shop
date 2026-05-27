@@ -2,7 +2,7 @@
 
 import { CheckCheck, Pencil, Package, Trash2 } from 'lucide-react'
 import { formatVND } from '@/lib/format'
-import { Order, statusOrders } from '@/lib/types'
+import { Order, statusOrders, statusOrdersVN } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ interface OrderListProps {
   onEdit: (order: Order) => void
   onDelete: (order: Order) => void
   onComplete: (order: Order) => void
+  onRowClick?: (order: Order) => void
 }
 
 const statusConfig: Record<string, { dot: string; badge: string }> = {
@@ -53,6 +54,7 @@ export default function OrderList({
   onEdit,
   onDelete,
   onComplete,
+  onRowClick,
 }: OrderListProps) {
   if (loading)
     return (
@@ -84,7 +86,11 @@ export default function OrderList({
             const extraItems  = order.items.length - 1
 
             return (
-              <TableRow key={order._id} className="group">
+              <TableRow
+                key={order._id}
+                className={cn('group', onRowClick && 'cursor-pointer hover:bg-muted/50 transition-colors')}
+                onClick={() => onRowClick?.(order)}
+              >
                 {/* Sản phẩm */}
                 <TableCell className="pl-5 py-3">
                   <div className="flex items-center gap-3">
@@ -134,7 +140,7 @@ export default function OrderList({
                 <TableCell className="py-3">
                   <Badge variant="outline" className={cn('gap-1.5 font-medium', cfg.badge)}>
                     <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', cfg.dot)} />
-                    {order.status}
+                    {statusOrdersVN[order.status] || order.status}
                   </Badge>
                 </TableCell>
 
