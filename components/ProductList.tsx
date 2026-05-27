@@ -86,28 +86,28 @@ export default function ProductList({
             const isWarning = product.stock < 20
 
             return (
-              <TableRow key={product._id}>
+              <TableRow key={product._id} className="align-middle">
                 {/* Ảnh */}
-                <TableCell className="pl-4">
-                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border bg-muted">
+                <TableCell className="pl-4 py-3">
+                  <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border bg-muted">
                     {product.image ? (
                       <Image
                         src={product.image}
                         alt={product.name}
                         fill
-                        sizes="40px"
+                        sizes="96px"
                         className="object-cover"
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center">
-                        <Package className="h-4 w-4 text-muted-foreground/40" />
+                        <Package className="h-6 w-6 text-muted-foreground/40" />
                       </div>
                     )}
                   </div>
                 </TableCell>
 
                 {/* Tên + ID */}
-                <TableCell>
+                <TableCell className="py-3">
                   <p className="font-semibold text-sm truncate max-w-48">{product.name}</p>
                   <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
                     #{product._id.slice(-6).toUpperCase()}

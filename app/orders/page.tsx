@@ -122,7 +122,7 @@ export default function OrdersPage() {
     const res  = await fetch(`/api/orders/${order._id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: statusOrders.COMPLETED }),
+      body: JSON.stringify({ status: statusOrders.PAID }),
     })
     const data = await res.json()
     if (res.ok) {

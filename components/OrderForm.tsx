@@ -558,7 +558,7 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
           disabled={loading || selectedItems.length === 0}
           className="flex-1 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white dark:text-zinc-950 font-semibold"
         >
-          {loading ? 'Đang xử lý…' : 'Đặt hàng'}
+          {loading ? 'Đang xử lý…' : 'Tạo đơn hàng'}
         </Button>
         {onCancel && (
           <Button type="button" variant="outline" onClick={onCancel}>Hủy</Button>
