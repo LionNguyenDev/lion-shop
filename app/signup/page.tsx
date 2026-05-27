@@ -50,7 +50,7 @@ export default function SignUpPage() {
 
       <div className="relative z-10 w-full max-w-sm animate-fade-up">
         {/* Logo */}
-        <Link href="/landing" className="mb-6 flex flex-col items-center gap-2">
+        <Link href="/" className="mb-6 flex flex-col items-center gap-2">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 via-pink-500 to-violet-500 text-white shadow-xl shadow-pink-500/30">
             <Sparkles className="h-5 w-5" />
           </div>
@@ -132,7 +132,7 @@ export default function SignUpPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          <Link href="/landing" className={buttonVariants({ variant: 'ghost', size: 'sm' }) + ' text-xs'}>
+          <Link href="/" className={buttonVariants({ variant: 'ghost', size: 'sm' }) + ' text-xs'}>
             ← Về trang chủ
           </Link>
         </p>

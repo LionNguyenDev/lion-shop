@@ -1,7 +1,7 @@
 import * as React from "react";
 const FacebookIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
-    fill="#000000"
+    fill="currentColor"
     height="800px"
     width="800px"
     id="Icons"

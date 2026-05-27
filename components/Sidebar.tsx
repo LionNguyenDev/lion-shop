@@ -45,13 +45,13 @@ interface CurrentUser {
 }
 
 const baseNav: NavItem[] = [
-  { label: 'Tổng quan',   href: '/',         icon: LayoutDashboard },
-  { label: 'Đơn hàng',   href: '/orders',   icon: ShoppingCart },
-  { label: 'Sản phẩm',   href: '/products', icon: Package },
+  { label: 'Tổng quan',   href: '/admin',            icon: LayoutDashboard },
+  { label: 'Đơn hàng',   href: '/admin/orders',   icon: ShoppingCart },
+  { label: 'Sản phẩm',   href: '/admin/products', icon: Package },
 ]
 
 const systemNav: NavItem[] = [
-  { label: 'Cài đặt', href: '/settings', icon: Settings },
+  { label: 'Cài đặt', href: '/admin/settings', icon: Settings },
 ]
 
 function NavLink({ item, active }: { item: NavItem; active: boolean }) {
@@ -101,7 +101,7 @@ export function Sidebar({ orderBadge, productBadge }: SidebarProps) {
     const tid = toast.loading('Đang đăng xuất…')
     await fetch('/api/auth/signout', { method: 'POST' })
     toast.success('Đã đăng xuất', { id: tid })
-    router.push('/landing')
+    router.push('/')
     router.refresh()
   }
 

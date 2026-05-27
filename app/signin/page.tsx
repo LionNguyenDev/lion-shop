@@ -49,7 +49,7 @@ export default function SignInPage() {
 
       <div className="relative z-10 w-full max-w-sm animate-fade-up">
         {/* Logo */}
-        <Link href="/landing" className="mb-6 flex flex-col items-center gap-2">
+        <Link href="/" className="mb-6 flex flex-col items-center gap-2">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-pink-500 text-white shadow-xl shadow-violet-500/30">
             <span className="text-2xl">🦁</span>
           </div>
@@ -116,7 +116,7 @@ export default function SignInPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          <Link href="/landing" className={buttonVariants({ variant: 'ghost', size: 'sm' }) + ' text-xs'}>
+          <Link href="/" className={buttonVariants({ variant: 'ghost', size: 'sm' }) + ' text-xs'}>
             ← Về trang chủ
           </Link>
         </p>

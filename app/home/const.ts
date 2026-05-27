@@ -60,7 +60,7 @@ export const reviews = [
 export const contacts = [
   {
     name: 'Facebook',
-    icon: '📘',
+    iconType: 'facebook',
     handle: 'Lion Shop Cosmetics',
     href: 'https://www.facebook.com/ThuyLinhLion206',
     color: 'from-blue-500 to-blue-600',
@@ -68,15 +68,15 @@ export const contacts = [
   },
   {
     name: 'Threads',
-    icon: '🧵',
+    iconType: 'threads',
     handle: '@lionbeauty',
-    href: 'https://www.instagram.com/thuylinnlion/',
+    href: 'https://www.threads.com/@thuylinnlion',
     color: 'from-slate-700 to-slate-900',
     shadow: 'shadow-slate-500/30',
   },
   {
     name: 'Zalo',
-    icon: '💬',
+    iconType: 'zalo',
     handle: 'Lion Shop Beauty',
     href: `https://zalo.me/0826223912`,
     color: 'from-sky-500 to-blue-500',
@@ -84,7 +84,7 @@ export const contacts = [
   },
   {
     name: 'Instagram',
-    icon: '📸',
+    iconType: 'instagram',
     handle: '@lion.cosmetics',
     href: 'https://www.instagram.com/thuylinnlion/',
     color: 'from-pink-500 via-rose-500 to-orange-400',

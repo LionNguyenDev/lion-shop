@@ -53,7 +53,7 @@ export function Header({ title, description, orderBadge, productBadge }: HeaderP
     const tid = toast.loading('Đang đăng xuất…')
     await fetch('/api/auth/signout', { method: 'POST' })
     toast.success('Đã đăng xuất', { id: tid })
-    router.push('/landing')
+    router.push('/')
     router.refresh()
   }
 
@@ -95,7 +95,7 @@ export function Header({ title, description, orderBadge, productBadge }: HeaderP
           <TooltipTrigger
             render={
               <Link
-                href="/landing"
+                href="/"
                 className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
               />
             }

@@ -2,7 +2,16 @@
 
 import Link from 'next/link'
 import { Heart } from 'lucide-react'
-import type { Contact } from '../const'
+import { Icons } from '@/assets/icons'
+
+interface Contact {
+  name: string
+  iconType: string
+  handle: string
+  href: string
+  color: string
+  shadow: string
+}
 
 interface FooterProps {
   contacts: Contact[]
@@ -48,13 +57,29 @@ export function Footer({ contacts, scrollTo, aboutRef, reviewsRef, contactRef }:
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-slate-700 dark:text-slate-300 mb-4">Mạng xã hội</p>
             <ul className="space-y-2.5 text-sm text-slate-600 dark:text-slate-400">
-              {contacts.map((c) => (
-                <li key={c.name}>
-                  <a href={c.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:text-slate-900 dark:hover:text-white transition-colors">
-                    <span>{c.icon}</span> {c.name}
-                  </a>
-                </li>
-              ))}
+              {contacts.map((c) => {
+                const getIcon = () => {
+                  switch(c.iconType) {
+                    case 'facebook':
+                      return <Icons.Facebook className="h-4 w-4" />
+                    case 'instagram':
+                      return <Icons.Instagram className="h-4 w-4" />
+                    case 'zalo':
+                      return <Icons.Zalo className="h-4 w-4" />
+                    case 'threads':
+                      return <Icons.Threads className="h-4 w-4" />
+                    default:
+                      return null
+                  }
+                }
+                return (
+                  <li key={c.name}>
+                    <a href={c.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:text-slate-900 dark:hover:text-white transition-colors">
+                      {getIcon()} {c.name}
+                    </a>
+                  </li>
+                )
+              })}
             </ul>
           </div>
         </div>
