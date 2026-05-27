@@ -1,5 +1,16 @@
+/* ─── Review type ─── */
+export type Review = {
+  id: number
+  name: string
+  avatar: string
+  rating: number
+  text: string
+  product: string
+  date: string
+}
+
 /* ─── Mock review data ─── */
-export const reviews = [
+export const reviews: Review[] = [
   {
     id: 1,
     name: 'Nguyễn Khánh Linh',

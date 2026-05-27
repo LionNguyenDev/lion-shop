@@ -1,7 +1,6 @@
 'use client'
 
 import { ExternalLink } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 interface Platform {
   id: string
@@ -121,7 +120,7 @@ export function SocialSection({ platforms, contactRef }: SocialSectionProps) {
                   <PhoneScreenContent type={p.id} />
                 </div>
                 {/* Home indicator */}
-                <div className="absolute bottom-[4px] left-1/2 -translate-x-1/2 h-[2.5px] w-[26px] rounded-full bg-slate-600" />
+                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 h-[2.5px] w-[26px] rounded-full bg-slate-600" />
               </div>
               {/* Glow */}
               <div className={`pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 h-5 w-24 rounded-full bg-slate-300 dark:bg-slate-700 opacity-30 blur-xl`} />
