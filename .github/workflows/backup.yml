@@ -1,0 +1,33 @@
+name: Daily Database Backup
+
+on:
+  schedule:
+    - cron: '0 19 * * *' # 02:00 AM Vietnam time (UTC+7)
+  workflow_dispatch:       # Cho phép chạy thủ công trên GitHub
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install MongoDB Database Tools
+        run: |
+          wget -qO- https://www.mongodb.org/static/pgp/server-7.0.asc | \
+            sudo tee /etc/apt/trusted.gpg.d/mongodb-7.asc >/dev/null
+          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | \
+            sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+          sudo apt-get update -q
+          sudo apt-get install -y mongodb-database-tools
+
+      - name: Backup database
+        run: |
+          TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
+          mongodump --uri="${{ secrets.MONGODB_URI }}" --out="backup/$TIMESTAMP"
+          tar -czf "backup-${TIMESTAMP}.tar.gz" -C backup "$TIMESTAMP"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup-*.tar.gz
+          retention-days: 30
