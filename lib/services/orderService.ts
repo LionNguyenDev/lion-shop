@@ -2,8 +2,14 @@ import mongoose from 'mongoose'
 import dbConnect from '@/lib/db'
 import Order from '@/models/Order'
 import Product from '@/models/Product'
-import { statusOrders } from '../types'
+import { statusOrders, Warehouse } from '../types'
 import { upsertCustomer } from '@/lib/services/customerService'
+
+const warehouseField: Record<Warehouse, 'stockHN' | 'stockQB' | 'stockSG'> = {
+  HN: 'stockHN',
+  QB: 'stockQB',
+  SG: 'stockSG',
+}
 
 export async function getAllOrders() {
   await dbConnect()
@@ -13,13 +19,16 @@ export async function getAllOrders() {
 export async function createOrder(data: {
   items: { product: string; quantity: number; price?: number }[]
   name: string
-  address: string
+  address?: string
   phone: string
+  warehouse: Warehouse
   status?: statusOrders
 }) {
   await dbConnect()
   const session = await mongoose.startSession()
   session.startTransaction()
+
+  const field = warehouseField[data.warehouse]
 
   try {
     let totalAmount = 0
@@ -28,15 +37,14 @@ export async function createOrder(data: {
 
     for (const item of data.items) {
       const product = await Product.findById(item.product).session(session)
-      if (!product) {
-        throw new Error(`Product with ID ${item.product} not found`)
+      if (!product) throw new Error(`Không tìm thấy sản phẩm: ${item.product}`)
+
+      const warehouseStock = (product[field] ?? 0) as number
+      if (warehouseStock < item.quantity) {
+        throw new Error(`Kho ${data.warehouse} không đủ hàng cho sản phẩm: ${product.name} (còn ${warehouseStock})`)
       }
 
-      if (product.stock < item.quantity) {
-        throw new Error(`Insufficient stock for product: ${product.name}`)
-      }
-
-      product.stock -= item.quantity
+      product[field] = warehouseStock - item.quantity
       await product.save({ session })
 
       const unitPrice = item.price ?? product.sellingPrice
@@ -56,19 +64,19 @@ export async function createOrder(data: {
       totalAmount,
       profit,
       name: data.name,
-      address: data.address,
+      address: data.address ?? '',
       phone: data.phone,
+      warehouse: data.warehouse,
       status: data.status ?? statusOrders.UNPAID,
     })
 
     await order.save({ session })
     await session.commitTransaction()
 
-    // Save/update customer record — best-effort, never rolls back a committed order
     try {
-      await upsertCustomer({ name: data.name, phone: data.phone, address: data.address })
+      await upsertCustomer({ name: data.name, phone: data.phone, address: data.address ?? '' })
     } catch {
-      // Intentionally swallowed
+      // best-effort
     }
 
     return order
@@ -107,12 +115,10 @@ export async function updateOrder(
   session.startTransaction()
   try {
     const existing = await Order.findById(id).session(session)
-    if (!existing) {
-      await session.abortTransaction()
-      return null
-    }
+    if (!existing) { await session.abortTransaction(); return null }
 
-    // Restore stock from previous items so we can re-deduct cleanly.
+    const field = warehouseField[(existing.warehouse as Warehouse) ?? 'HN']
+
     const oldQtyByProduct = new Map<string, number>()
     for (const it of existing.items) {
       const key = String(it.product)
@@ -123,10 +129,7 @@ export async function updateOrder(
       newQtyByProduct.set(it.product, (newQtyByProduct.get(it.product) ?? 0) + it.quantity)
     }
 
-    const productIds = new Set<string>([
-      ...oldQtyByProduct.keys(),
-      ...newQtyByProduct.keys(),
-    ])
+    const productIds = new Set<string>([...oldQtyByProduct.keys(), ...newQtyByProduct.keys()])
 
     let totalAmount = 0
     let profit = 0
@@ -140,20 +143,20 @@ export async function updateOrder(
 
     for (const productId of productIds) {
       const product = await Product.findById(productId).session(session)
-      if (!product) throw new Error(`Product with ID ${productId} not found`)
+      if (!product) throw new Error(`Không tìm thấy sản phẩm: ${productId}`)
 
       const delta = (newQtyByProduct.get(productId) ?? 0) - (oldQtyByProduct.get(productId) ?? 0)
-      if (delta > 0 && product.stock < delta) {
-        throw new Error(`Insufficient stock for product: ${product.name}`)
+      const currentStock = (product[field] ?? 0) as number
+      if (delta > 0 && currentStock < delta) {
+        throw new Error(`Kho không đủ hàng cho sản phẩm: ${product.name}`)
       }
-      product.stock -= delta
+      product[field] = currentStock - delta
       await product.save({ session })
     }
 
-    // Build new items in the order the client supplied them.
     for (const it of items) {
       const product = await Product.findById(it.product).session(session)
-      if (!product) throw new Error(`Product with ID ${it.product} not found`)
+      if (!product) throw new Error(`Không tìm thấy sản phẩm: ${it.product}`)
       const unitPrice = it.price ?? product.sellingPrice
       totalAmount += unitPrice * it.quantity
       profit += (unitPrice - product.originalPrice) * it.quantity

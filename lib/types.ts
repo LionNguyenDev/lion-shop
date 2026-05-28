@@ -1,10 +1,23 @@
+export const WAREHOUSES = {
+  HN: 'Hà Nội',
+  QB: 'Quảng Bình',
+  SG: 'Sài Gòn',
+} as const
+
+export type Warehouse = keyof typeof WAREHOUSES
+
 export interface Product {
   _id: string
   name: string
+  brand: string
+  type: string
   originalPrice: number
   sellingPrice: number
   image: string
-  stock: number
+  stockHN: number
+  stockQB: number
+  stockSG: number
+  stock: number  // tổng = stockHN + stockQB + stockSG (tính bởi service)
   createdAt: string
   updatedAt: string
 }
@@ -50,6 +63,7 @@ export interface Order {
   totalAmount: number
   profit: number
   status: statusOrders
+  warehouse: Warehouse
   name: string
   phone: string
   address: string

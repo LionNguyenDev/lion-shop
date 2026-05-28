@@ -240,9 +240,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([fetch('/api/products'), fetch('/api/orders')])
+    Promise.all([fetch('/api/products?limit=500'), fetch('/api/orders')])
       .then(([pRes, oRes]) => Promise.all([pRes.json(), oRes.json()]))
-      .then(([products, orders]) => setData({ products, orders }))
+      .then(([productsRes, orders]) => setData({ products: productsRes.products ?? [], orders }))
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [])

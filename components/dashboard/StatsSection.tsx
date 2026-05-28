@@ -71,12 +71,14 @@ function KpiCard({
   icon: Icon,
   accent,
   loading,
+  valueNegative,
 }: {
   label: string
   value: string
   delta: number | null
   icon: React.ElementType
   accent: string
+  valueNegative?: boolean
   loading: boolean
 }) {
   const positive = delta != null && delta > 0
@@ -92,7 +94,7 @@ function KpiCard({
             {loading ? (
               <Skeleton className="mt-2 h-8 w-32" />
             ) : (
-              <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums truncate">{value}</p>
+              <p className={cn('mt-1 text-2xl font-bold tracking-tight tabular-nums truncate', valueNegative && 'text-red-600 dark:text-red-400')}>{value}</p>
             )}
             {loading ? (
               <Skeleton className="mt-2 h-4 w-20" />
@@ -249,6 +251,7 @@ export function StatsSection() {
               ? 'bg-red-500/10 text-red-600 dark:text-red-400'
               : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
           }
+          valueNegative={profitNegative}
           loading={loading}
         />
       </div>

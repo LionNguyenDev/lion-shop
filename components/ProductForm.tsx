@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Product } from '@/lib/types'
 import ImageUploadButton from './ImageUploadButton'
+import VndInput from './VndInput'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,9 +21,13 @@ export default function ProductForm({
 }: ProductFormProps) {
   const [formData, setFormData] = useState({
     name:          initialData?.name          ?? '',
+    brand:         initialData?.brand         ?? '',
+    type:          initialData?.type          ?? '',
     originalPrice: initialData?.originalPrice ?? 0,
     sellingPrice:  initialData?.sellingPrice  ?? 0,
-    stock:         initialData?.stock         ?? 0,
+    stockHN:       initialData?.stockHN       ?? 0,
+    stockQB:       initialData?.stockQB       ?? 0,
+    stockSG:       initialData?.stockSG       ?? 0,
     image:         initialData?.image         ?? '',
   })
   const [loading, setLoading] = useState(false)
@@ -74,55 +79,69 @@ export default function ProductForm({
         />
       </div>
 
-      {/* Giá */}
+      {/* Nhãn hàng & Loại sản phẩm */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="prod-cost">Giá vốn (₫)</Label>
+          <Label htmlFor="prod-brand">Nhãn hàng</Label>
           <Input
-            id="prod-cost"
-            type="number"
+            id="prod-brand"
             required
-            min="0"
-            value={formData.originalPrice}
-            onChange={(e) =>
-              setFormData((p) => ({
-                ...p,
-                originalPrice: parseFloat(e.target.value) || 0,
-              }))
-            }
+            placeholder="VD: L'Oréal"
+            value={formData.brand}
+            onChange={(e) => setFormData((p) => ({ ...p, brand: e.target.value }))}
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="prod-price">Giá bán (₫)</Label>
+          <Label htmlFor="prod-type">Loại sản phẩm</Label>
           <Input
-            id="prod-price"
-            type="number"
+            id="prod-type"
             required
-            min="0"
-            value={formData.sellingPrice}
-            onChange={(e) =>
-              setFormData((p) => ({
-                ...p,
-                sellingPrice: parseFloat(e.target.value) || 0,
-              }))
-            }
+            placeholder="VD: Mỹ phẩm, Nước hoa"
+            value={formData.type}
+            onChange={(e) => setFormData((p) => ({ ...p, type: e.target.value }))}
           />
         </div>
       </div>
 
-      {/* Tồn kho */}
+      {/* Giá */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="prod-cost">Giá vốn (₫)</Label>
+          <VndInput
+            id="prod-cost"
+            required
+            value={formData.originalPrice}
+            onChange={(v) => setFormData((p) => ({ ...p, originalPrice: v }))}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="prod-price">Giá bán (₫)</Label>
+          <VndInput
+            id="prod-price"
+            required
+            value={formData.sellingPrice}
+            onChange={(v) => setFormData((p) => ({ ...p, sellingPrice: v }))}
+          />
+        </div>
+      </div>
+
+      {/* Tồn kho theo kho */}
       <div className="space-y-1.5">
-        <Label htmlFor="prod-stock">Tồn kho</Label>
-        <Input
-          id="prod-stock"
-          type="number"
-          required
-          min="0"
-          value={formData.stock}
-          onChange={(e) =>
-            setFormData((p) => ({ ...p, stock: parseInt(e.target.value) || 0 }))
-          }
-        />
+        <Label>Tồn kho theo kho</Label>
+        <div className="grid grid-cols-3 gap-3">
+          {([['stockHN', 'Hà Nội'], ['stockQB', 'Quảng Bình'], ['stockSG', 'Sài Gòn']] as const).map(([field, label]) => (
+            <div key={field} className="space-y-1">
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <Input
+                type="number"
+                required
+                min="0"
+                value={formData[field]}
+                onChange={(e) => setFormData((p) => ({ ...p, [field]: parseInt(e.target.value) || 0 }))}
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Hình ảnh */}

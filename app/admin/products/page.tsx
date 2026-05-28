@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pagination } from '@/components/ui/pagination'
 import { toast } from 'sonner'
-import { AlertCircle, Package, Plus, Search, SlidersHorizontal, TrendingUp, XCircle } from 'lucide-react'
+import { AlertCircle, Package, Plus, Search, ShoppingCart, SlidersHorizontal, TrendingUp, X, XCircle } from 'lucide-react'
 import { AppShell } from '@/components/AppShell'
+import OrderForm from '@/components/OrderForm'
 import ProductForm from '@/components/ProductForm'
 import ProductList from '@/components/ProductList'
 import { Product } from '@/lib/types'
@@ -31,52 +32,103 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 
+interface ApiStats {
+  total: number
+  lowStock: number
+  outOfStock: number
+  inventoryValue: number
+}
+
+const PAGE_SIZE = 10
+
 export default function ProductsPage() {
   const [products, setProducts]             = useState<Product[]>([])
+  const [total, setTotal]                   = useState(0)
+  const [totalPages, setTotalPages]         = useState(1)
+  const [allBrands, setAllBrands]           = useState<string[]>([])
+  const [apiStats, setApiStats]             = useState<ApiStats>({ total: 0, lowStock: 0, outOfStock: 0, inventoryValue: 0 })
   const [loading, setLoading]               = useState(true)
   const [formOpen, setFormOpen]             = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [deleteTarget, setDeleteTarget]     = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading]   = useState(false)
-  const [search, setSearch]                 = useState('')
-  const [page, setPage]                     = useState(1)
-  const PAGE_SIZE = 10
+  const [selectedIds, setSelectedIds]             = useState<Set<string>>(new Set())
+  const [selectedProductsCache, setSelectedProductsCache] = useState<Map<string, Product>>(new Map())
+  const [orderOpen, setOrderOpen]                 = useState(false)
+
+  const handleSelectionChange = (newIds: Set<string>) => {
+    setSelectedIds(newIds)
+    setSelectedProductsCache((prev) => {
+      const next = new Map(prev)
+      for (const id of prev.keys()) {
+        if (!newIds.has(id)) next.delete(id)
+      }
+      for (const id of newIds) {
+        if (!next.has(id)) {
+          const p = products.find((p) => p._id === id)
+          if (p) next.set(id, p)
+        }
+      }
+      return next
+    })
+  }
+
+  const clearSelection = () => {
+    setSelectedIds(new Set())
+    setSelectedProductsCache(new Map())
+  }
+
+  // Input states (immediate UI)
+  const [search, setSearch]           = useState('')
+  const [brandFilter, setBrandFilter] = useState('')
+  const [page, setPage]               = useState(1)
+
+  // Debounced values used in API calls
+  const [apiSearch, setApiSearch] = useState('')
+  const [apiBrand, setApiBrand]   = useState('')
+
+  // Debounce text inputs 350ms, reset page on filter change
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setApiSearch(search)
+      setApiBrand(brandFilter)
+      setPage(1)
+    }, 350)
+    return () => clearTimeout(t)
+  }, [search, brandFilter])
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
     try {
-      const res  = await fetch('/api/products')
+      const params = new URLSearchParams()
+      if (apiSearch) params.set('search', apiSearch)
+      if (apiBrand)  params.set('brand',  apiBrand)
+      params.set('page',  page.toString())
+      params.set('limit', PAGE_SIZE.toString())
+
+      const res  = await fetch(`/api/products?${params}`)
       const data = await res.json()
-      setProducts(data)
+
+      setProducts(data.products)
+      setTotal(data.total)
+      setTotalPages(data.totalPages)
+      if (data.brands?.length)  setAllBrands(data.brands)
+      if (data.stats)           setApiStats(data.stats)
     } catch {
       toast.error('Không thể tải sản phẩm')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [apiSearch, apiBrand, page])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
 
-  const lowStockCount = useMemo(() => products.filter((p) => p.stock < 20).length, [products])
-
-  const stats = useMemo(() => {
-    const outOfStock     = products.filter((p) => p.stock === 0).length
-    const inventoryValue = products.reduce((s, p) => s + p.stock * p.sellingPrice, 0)
-    return [
-      { label: 'Tổng sản phẩm',  value: products.length.toString(),   color: 'text-blue-600 dark:text-blue-400',    bar: 'bg-blue-500 dark:bg-blue-400',    icon: Package },
-      { label: 'Sắp hết hàng',   value: lowStockCount.toString(),      color: 'text-amber-600 dark:text-amber-400',  bar: 'bg-amber-500 dark:bg-amber-400',  icon: AlertCircle },
-      { label: 'Hết hàng',       value: outOfStock.toString(),         color: 'text-red-600 dark:text-red-400',      bar: 'bg-red-500 dark:bg-red-400',      icon: XCircle },
-      { label: 'Giá trị kho',    value: formatVND(inventoryValue),     color: 'text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500 dark:bg-emerald-400', icon: TrendingUp },
-    ]
-  }, [products, lowStockCount])
-
-  const filteredProducts = useMemo(() => {
-    const q = search.toLowerCase()
-    return !q ? products : products.filter((p) => p.name.toLowerCase().includes(q) || p._id.toLowerCase().includes(q))
-  }, [products, search])
-
-  const totalPages    = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE))
-  const pagedProducts = filteredProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const stats = useMemo(() => [
+    { label: 'Tổng sản phẩm', value: apiStats.total.toString(),          color: 'text-blue-600 dark:text-blue-400',       bar: 'bg-blue-500 dark:bg-blue-400',       icon: Package },
+    { label: 'Sắp hết hàng',  value: apiStats.lowStock.toString(),       color: 'text-amber-600 dark:text-amber-400',     bar: 'bg-amber-500 dark:bg-amber-400',     icon: AlertCircle },
+    { label: 'Hết hàng',      value: apiStats.outOfStock.toString(),      color: 'text-red-600 dark:text-red-400',         bar: 'bg-red-500 dark:bg-red-400',         icon: XCircle },
+    { label: 'Giá trị kho',   value: formatVND(apiStats.inventoryValue),  color: 'text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500 dark:bg-emerald-400', icon: TrendingUp },
+  ], [apiStats])
 
   const openCreate = () => { setEditingProduct(null); setFormOpen(true) }
   const openEdit   = (p: Product) => { setEditingProduct(p); setFormOpen(true) }
@@ -103,7 +155,7 @@ export default function ProductsPage() {
     <AppShell
       title="Sản phẩm"
       description="Quản lý kho hàng và bảng giá"
-      productBadge={lowStockCount || undefined}
+      productBadge={apiStats.lowStock || undefined}
     >
       {/* ── Header row ── */}
       <div className="flex items-center justify-between mb-6">
@@ -119,7 +171,7 @@ export default function ProductsPage() {
 
       {/* ── Stats ── */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {loading
+        {loading && apiStats.total === 0
           ? [...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)
           : stats.map((s) => (
               <Card key={s.label} size="sm">
@@ -135,18 +187,31 @@ export default function ProductsPage() {
       </div>
 
       {/* ── Search ── */}
-      <div className="mb-4 flex gap-3">
+      <div className="mb-4 flex flex-wrap gap-3">
         <div className="relative min-w-56 flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Tìm kiếm theo tên hoặc mã…"
+            placeholder="Tìm kiếm theo tên…"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-        {search && (
-          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setPage(1) }}>
+        <div className="relative min-w-40">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Lọc theo nhãn hàng…"
+            value={brandFilter}
+            onChange={(e) => setBrandFilter(e.target.value)}
+            className="pl-9"
+            list="brand-list"
+          />
+          <datalist id="brand-list">
+            {allBrands.map((b) => <option key={b} value={b} />)}
+          </datalist>
+        </div>
+        {(search || brandFilter) && (
+          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setBrandFilter('') }}>
             <XCircle className="h-4 w-4" /> Xóa bộ lọc
           </Button>
         )}
@@ -154,25 +219,42 @@ export default function ProductsPage() {
 
       {!loading && (
         <p className="mb-3 text-xs text-muted-foreground">
-          Hiển thị {pagedProducts.length} trong {filteredProducts.length} sản phẩm
-          {filteredProducts.length !== products.length && ` (đã lọc từ ${products.length})`}
+          Hiển thị {products.length} trong {total} sản phẩm
+          {total !== apiStats.total && ` (đã lọc từ ${apiStats.total})`}
         </p>
       )}
 
       {/* ── Table ── */}
       <ProductList
-        products={pagedProducts}
+        products={products}
         onEdit={openEdit}
         onDelete={(id) => setDeleteTarget(id)}
         loading={loading}
+        selectedIds={selectedIds}
+        onSelectionChange={handleSelectionChange}
       />
 
       <Pagination
         page={page}
         totalPages={totalPages}
-        onPageChange={setPage}
+        onPageChange={(p) => { setPage(p); clearSelection() }}
         className="mt-4"
       />
+
+      {/* ── Floating action bar khi có sản phẩm được chọn ── */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl border bg-card shadow-xl px-5 py-3 animate-in slide-in-from-bottom-4 duration-200">
+          <span className="text-sm font-medium text-muted-foreground">
+            Đã chọn <span className="font-bold text-foreground">{selectedIds.size}</span> sản phẩm
+          </span>
+          <Button size="sm" onClick={() => setOrderOpen(true)}>
+            <ShoppingCart className="h-4 w-4" /> Tạo đơn hàng
+          </Button>
+          <Button variant="ghost" size="icon-sm" onClick={clearSelection} title="Bỏ chọn">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       {/* ── Product form dialog ── */}
       <Dialog open={formOpen} onOpenChange={(open) => !open && closeForm()}>
@@ -189,6 +271,29 @@ export default function ProductsPage() {
               toast.success(editingProduct ? 'Đã cập nhật sản phẩm' : 'Đã thêm sản phẩm')
             }}
             onCancel={closeForm}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Order from selection dialog ── */}
+      <Dialog open={orderOpen} onOpenChange={(open) => !open && setOrderOpen(false)}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Tạo đơn hàng</DialogTitle>
+          </DialogHeader>
+          <OrderForm
+            key={[...selectedIds].join(',')}
+            initialItems={[...selectedProductsCache.values()].map((p) => ({
+              product: p._id,
+              quantity: 1,
+              sellingPrice: p.sellingPrice,
+            }))}
+            onSuccess={() => {
+              setOrderOpen(false)
+              clearSelection()
+              toast.success('Đã tạo đơn hàng')
+            }}
+            onCancel={() => setOrderOpen(false)}
           />
         </DialogContent>
       </Dialog>

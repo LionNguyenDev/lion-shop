@@ -1,29 +1,32 @@
-import { NextResponse } from 'next/server';
-import { getAllProducts, createProduct } from '@/lib/services/productService';
+import { NextRequest, NextResponse } from 'next/server'
+import { getProducts, createProduct } from '@/lib/services/productService'
 
-
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const products = await getAllProducts();
-    return NextResponse.json(products);
+    const { searchParams } = request.nextUrl
+    const search = searchParams.get('search') || undefined
+    const brand  = searchParams.get('brand')  || undefined
+    const page   = Math.max(1, parseInt(searchParams.get('page')  || '1',  10))
+    const limit  = Math.min(500, Math.max(1, parseInt(searchParams.get('limit') || '10', 10)))
+
+    const result = await getProducts({ search, brand, page, limit })
+    return NextResponse.json(result)
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
-    console.error('Error fetching products:', error);
+    console.error('Error fetching products:', error)
+    return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 })
   }
 }
-
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    if (!body.name || body.originalPrice === undefined || body.sellingPrice === undefined || body.stock === undefined || !body.image) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    const body = await request.json()
+    if (!body.name || !body.brand || !body.type || body.originalPrice === undefined || body.sellingPrice === undefined || !body.image) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
-    const product = await createProduct(body);
-    return NextResponse.json(product, { status: 201 });
+    const product = await createProduct(body)
+    return NextResponse.json(product, { status: 201 })
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
-    console.error('Error creating product:', error);
+    console.error('Error creating product:', error)
+    return NextResponse.json({ error: 'Failed to create product' }, { status: 500 })
   }
 }
-

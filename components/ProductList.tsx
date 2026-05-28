@@ -21,6 +21,8 @@ interface ProductListProps {
   onEdit: (product: Product) => void
   onDelete: (id: string) => void
   loading: boolean
+  selectedIds?: Set<string>
+  onSelectionChange?: (ids: Set<string>) => void
 }
 
 export default function ProductList({
@@ -28,7 +30,35 @@ export default function ProductList({
   onEdit,
   onDelete,
   loading,
+  selectedIds,
+  onSelectionChange,
 }: ProductListProps) {
+  const selectable = !!onSelectionChange
+
+  const toggleOne = (id: string) => {
+    if (!onSelectionChange || !selectedIds) return
+    const next = new Set(selectedIds)
+    next.has(id) ? next.delete(id) : next.add(id)
+    onSelectionChange(next)
+  }
+
+  const toggleAll = () => {
+    if (!onSelectionChange || !selectedIds) return
+    const allOnPage = products.map((p) => p._id)
+    const allSelected = allOnPage.every((id) => selectedIds.has(id))
+    if (allSelected) {
+      const next = new Set(selectedIds)
+      allOnPage.forEach((id) => next.delete(id))
+      onSelectionChange(next)
+    } else {
+      const next = new Set(selectedIds)
+      allOnPage.forEach((id) => next.add(id))
+      onSelectionChange(next)
+    }
+  }
+
+  const allOnPageSelected = products.length > 0 && products.every((p) => selectedIds?.has(p._id))
+  const someOnPageSelected = products.some((p) => selectedIds?.has(p._id))
   if (loading) {
     return (
       <div className="space-y-2">
@@ -64,6 +94,18 @@ export default function ProductList({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40">
+            {selectable && (
+              <TableHead className="pl-4 w-10">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                  checked={allOnPageSelected}
+                  ref={(el) => { if (el) el.indeterminate = someOnPageSelected && !allOnPageSelected }}
+                  onChange={toggleAll}
+                  aria-label="Chọn tất cả"
+                />
+              </TableHead>
+            )}
             <TableHead className="pl-4 w-16" />
             <TableHead>Sản phẩm</TableHead>
             <TableHead className="text-right">Giá vốn</TableHead>
@@ -82,34 +124,62 @@ export default function ProductList({
                     100
                   ).toFixed(0)
                 : null
-            const isDanger  = product.stock < 10
-            const isWarning = product.stock < 20
+            const isSelected = selectedIds?.has(product._id) ?? false
 
             return (
-              <TableRow key={product._id} className="align-middle">
+              <TableRow
+                key={product._id}
+                className={cn('align-middle', isSelected && 'bg-primary/5')}
+                onClick={selectable ? () => toggleOne(product._id) : undefined}
+                style={selectable ? { cursor: 'pointer' } : undefined}
+              >
+                {/* Checkbox */}
+                {selectable && (
+                  <TableCell className="pl-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                      checked={isSelected}
+                      onChange={() => toggleOne(product._id)}
+                      aria-label={`Chọn ${product.name}`}
+                    />
+                  </TableCell>
+                )}
                 {/* Ảnh */}
                 <TableCell className="pl-4 py-3">
-                  <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border bg-muted">
+                  <div className="relative h-32 w-32 shrink-0 overflow-hidden rounded-xl border bg-muted">
                     {product.image ? (
                       <Image
                         src={product.image}
                         alt={product.name}
                         fill
-                        sizes="96px"
+                        sizes="128px"
                         className="object-cover"
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center">
-                        <Package className="h-6 w-6 text-muted-foreground/40" />
+                        <Package className="h-8 w-8 text-muted-foreground/40" />
                       </div>
                     )}
                   </div>
                 </TableCell>
 
-                {/* Tên + ID */}
+                {/* Tên + brand + type + ID */}
                 <TableCell className="py-3">
-                  <p className="font-semibold text-sm truncate max-w-48">{product.name}</p>
-                  <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                  <p className="font-semibold text-sm truncate max-w-52">{product.name}</p>
+                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    {product.brand && (
+                      <span className="inline-flex items-center rounded-md bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                        {product.brand}
+                      </span>
+                    )}
+                    {product.type && (
+                      <span className="inline-flex items-center rounded-md bg-purple-500/10 px-2 py-0.5 text-[11px] font-medium text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                        {product.type}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground font-mono mt-1.5">
                     #{product._id.slice(-6).toUpperCase()}
                   </p>
                 </TableCell>
@@ -139,20 +209,29 @@ export default function ProductList({
 
                 {/* Tồn kho */}
                 <TableCell className="text-right">
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'gap-1',
-                      isDanger
-                        ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30'
-                        : isWarning
-                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 dark:border-amber-500/30'
-                          : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
-                    )}
-                  >
-                    {isWarning && <AlertCircle className="h-3 w-3" />}
-                    {product.stock}
-                  </Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    {([['HN', product.stockHN], ['QB', product.stockQB], ['SG', product.stockSG]] as const).map(([label, qty]) => {
+                      const low  = (qty ?? 0) < 20
+                      const zero = (qty ?? 0) === 0
+                      return (
+                        <div key={label} className="flex items-center gap-1.5">
+                          <span className="text-[11px] text-muted-foreground w-6 text-right">{label}</span>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'text-[11px] min-w-8 justify-center gap-0.5',
+                              zero ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                                : low  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                                       : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+                            )}
+                          >
+                            {zero && <AlertCircle className="h-2.5 w-2.5" />}
+                            {qty ?? 0}
+                          </Badge>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </TableCell>
 
                 {/* Thao tác */}

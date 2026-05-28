@@ -1,5 +1,5 @@
 import mongoose, { type Document, type Model, Schema } from 'mongoose'
-import { statusOrders } from '@/lib/types'
+import { statusOrders, WAREHOUSES } from '@/lib/types'
 export interface IOrderItem {
   product: mongoose.Types.ObjectId
   name: string
@@ -13,6 +13,10 @@ export interface IOrder extends Document {
   totalAmount: number
   profit: number
   status: statusOrders
+  warehouse: keyof typeof WAREHOUSES
+  name: string
+  phone: string
+  address: string
   createdAt: Date
   updatedAt: Date
 }
@@ -31,8 +35,13 @@ const OrderSchema: Schema = new Schema(
     totalAmount: { type: Number, required: true, min: 0 },
     profit: { type: Number, required: true, default: 0 },
     name: { type: String, required: true }, // name of guest
-    address: { type: String, required: true }, // address of guest
+    address: { type: String, default: '' }, // address of guest (optional)
     phone: { type: String, required: true }, // phone number of guest
+    warehouse: {
+      type: String,
+      enum: Object.keys(WAREHOUSES),
+      required: true,
+    },
     status: {
       type: String,
       enum: Object.values(statusOrders),

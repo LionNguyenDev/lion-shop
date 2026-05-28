@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createOrder, getAllOrders } from '@/lib/services/orderService'
+import { WAREHOUSES } from '@/lib/types'
 
 export async function GET() {
   try {
@@ -38,9 +39,9 @@ export async function POST(request: Request) {
       )
     }
 
-    if (!body.address?.trim()) {
+    if (!body.warehouse || !(body.warehouse in WAREHOUSES)) {
       return NextResponse.json(
-        { error: 'Delivery address is required' },
+        { error: 'Vui lòng chọn kho xuất hàng' },
         { status: 400 },
       )
     }
@@ -49,7 +50,8 @@ export async function POST(request: Request) {
       items: body.items,
       name: body.name.trim(),
       phone: body.phone.trim(),
-      address: body.address.trim(),
+      address: body.address?.trim() ?? '',
+      warehouse: body.warehouse,
       status: body.status,
     })
 
