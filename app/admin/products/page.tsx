@@ -1,15 +1,16 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Pagination } from '@/components/ui/pagination'
 import { toast } from 'sonner'
-import { AlertCircle, Package, Plus, Search, ShoppingCart, SlidersHorizontal, TrendingUp, X, XCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle, Package, Plus, Search, ShoppingCart, SlidersHorizontal, TrendingUp, X, XCircle } from 'lucide-react'
 import { AppShell } from '@/components/AppShell'
 import OrderForm from '@/components/OrderForm'
 import ProductForm from '@/components/ProductForm'
 import ProductList from '@/components/ProductList'
-import { Product } from '@/lib/types'
-import { formatVND } from '@/lib/format'
+import { Order, Product, statusOrders, statusOrdersVN } from '@/lib/types'
+import { formatProfit, formatVND } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -55,6 +56,8 @@ export default function ProductsPage() {
   const [selectedIds, setSelectedIds]             = useState<Set<string>>(new Set())
   const [selectedProductsCache, setSelectedProductsCache] = useState<Map<string, Product>>(new Map())
   const [orderOpen, setOrderOpen]                 = useState(false)
+  const [createdOrder, setCreatedOrder]           = useState<Order | null>(null)
+  const router = useRouter()
 
   const handleSelectionChange = (newIds: Set<string>) => {
     setSelectedIds(newIds)
@@ -288,13 +291,98 @@ export default function ProductsPage() {
               quantity: 1,
               sellingPrice: p.sellingPrice,
             }))}
-            onSuccess={() => {
+            onSuccess={(order) => {
               setOrderOpen(false)
               clearSelection()
-              toast.success('Đã tạo đơn hàng')
+              setCreatedOrder(order)
             }}
             onCancel={() => setOrderOpen(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Order success preview ── */}
+      <Dialog
+        open={!!createdOrder}
+        onOpenChange={(open) => {
+          if (!open) { setCreatedOrder(null); router.push('/admin/orders') }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          {createdOrder && (
+            <div className="space-y-5 py-2">
+              <div className="text-center space-y-1">
+                <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
+                <h2 className="text-xl font-bold">Đơn hàng đã được tạo!</h2>
+                <p className="text-muted-foreground text-sm">
+                  {new Date(createdOrder.createdAt).toLocaleString('vi-VN')}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-muted/40 rounded-lg border">
+                <span className="text-xs font-mono text-muted-foreground">
+                  #{createdOrder._id.slice(-10).toUpperCase()}
+                </span>
+                <span className={cn(
+                  'text-xs font-bold uppercase px-2 py-0.5 rounded-md border',
+                  createdOrder.status === statusOrders.UNPAID
+                    ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                    : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+                )}>
+                  {statusOrdersVN[createdOrder.status] ?? createdOrder.status}
+                </span>
+              </div>
+
+              <div className="space-y-0.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Khách hàng</p>
+                <p className="font-medium">{createdOrder.name}</p>
+                <p className="text-sm text-muted-foreground">{createdOrder.phone}</p>
+                {createdOrder.address && <p className="text-sm text-muted-foreground/70">{createdOrder.address}</p>}
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Sản phẩm</p>
+                <div className="divide-y rounded-lg border overflow-hidden">
+                  {createdOrder.items.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between px-3 py-2 bg-card text-sm">
+                      <span><span className="font-semibold">{item.quantity}×</span> {item.name}</span>
+                      <span className="text-muted-foreground">{formatVND(item.price * item.quantity)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between py-2 border-t">
+                <span className="font-semibold">Tổng cộng</span>
+                <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                  {formatVND(createdOrder.totalAmount)}
+                </span>
+              </div>
+
+              <div className={cn(
+                'flex items-center justify-between px-3 py-2 rounded-lg border',
+                createdOrder.profit > 0 && 'bg-emerald-500/10 border-emerald-500/30',
+                createdOrder.profit < 0 && 'bg-red-500/10 border-red-500/30',
+                createdOrder.profit === 0 && 'bg-muted/40',
+              )}>
+                <span className="text-sm font-semibold">{createdOrder.profit >= 0 ? 'Lãi' : 'Lỗ'}</span>
+                <span className={cn(
+                  'text-base font-bold tabular-nums',
+                  createdOrder.profit > 0 && 'text-emerald-600 dark:text-emerald-400',
+                  createdOrder.profit < 0 && 'text-red-600 dark:text-red-400',
+                )}>
+                  {formatProfit(createdOrder.profit)}
+                </span>
+              </div>
+
+              <Button
+                className="w-full"
+                onClick={() => { setCreatedOrder(null); router.push('/admin/orders') }}
+              >
+                Xem đơn hàng
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

@@ -75,9 +75,9 @@ function EditForm({
 
   useEffect(() => {
     let ignore = false
-    fetch('/api/products')
+    fetch('/api/products?limit=500')
       .then((r) => r.json())
-      .then((d) => { if (!ignore) setProducts(d) })
+      .then((d) => { if (!ignore) setProducts(d.products ?? d) })
       .catch(() => { if (!ignore) setError('Không thể tải sản phẩm') })
     return () => { ignore = true }
   }, [])

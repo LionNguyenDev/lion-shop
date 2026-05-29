@@ -123,7 +123,7 @@ function RecentOrders({ orders, loading }: { orders: Order[]; loading: boolean }
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
         <CardTitle className="text-sm font-semibold">Đơn hàng gần đây</CardTitle>
-        <Link href="/orders" className={buttonVariants({ variant: 'ghost', size: 'sm' }) + ' text-xs h-7'}>
+        <Link href="/admin/orders" className={buttonVariants({ variant: 'ghost', size: 'sm' }) + ' text-xs h-7'}>
           Xem tất cả <ArrowRight className="h-3 w-3" />
         </Link>
       </CardHeader>
@@ -176,7 +176,7 @@ function LowStockList({ products, loading }: { products: Product[]; loading: boo
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
         <CardTitle className="text-sm font-semibold">Cảnh báo tồn kho thấp</CardTitle>
-        <Link href="/products" className={buttonVariants({ variant: 'ghost', size: 'sm' }) + ' text-xs h-7'}>
+        <Link href="/admin/products" className={buttonVariants({ variant: 'ghost', size: 'sm' }) + ' text-xs h-7'}>
           Quản lý <ArrowRight className="h-3 w-3" />
         </Link>
       </CardHeader>
@@ -255,7 +255,7 @@ export default function DashboardPage() {
       value: loading ? '—' : formatVND(revenue),
       sub: 'Tổng các đơn đã thanh toán',
       icon: Wallet,
-      href: '/orders',
+      href: '/admin/orders',
       accent: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
     },
     {
@@ -263,7 +263,7 @@ export default function DashboardPage() {
       value: loading ? '—' : data.orders.length.toLocaleString('vi-VN'),
       sub: `${unpaidCount} chưa thanh toán`,
       icon: ShoppingCart,
-      href: '/orders',
+      href: '/admin/orders',
       accent: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 dark:border-blue-500/30',
     },
     {
@@ -271,7 +271,7 @@ export default function DashboardPage() {
       value: loading ? '—' : data.products.length.toLocaleString('vi-VN'),
       sub: `${lowStockCount} sắp hết hàng`,
       icon: Package,
-      href: '/products',
+      href: '/admin/products',
       accent: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 dark:border-purple-500/30',
     },
     {
@@ -279,7 +279,7 @@ export default function DashboardPage() {
       value: loading ? '—' : lowStockCount,
       sub: lowStockCount > 0 ? 'Cần nhập thêm hàng' : 'Tất cả ổn',
       icon: AlertTriangle,
-      href: '/products',
+      href: '/admin/products',
       accent:
         lowStockCount > 0
           ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30'

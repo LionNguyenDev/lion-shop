@@ -1,7 +1,7 @@
 'use client'
 
 import { CheckCheck, Pencil, Package, Trash2 } from 'lucide-react'
-import { formatVND } from '@/lib/format'
+import { formatProfit, formatVND } from '@/lib/format'
 import { Order, statusOrders, statusOrdersVN } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -62,10 +62,10 @@ export default function OrderList({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead className="pl-5 w-64">Tên sản phẩm</TableHead>
+            <TableHead className="pl-5 w-72">Tên sản phẩm</TableHead>
             <TableHead className="w-48">Khách hàng</TableHead>
             <TableHead className="w-40">Mã đơn hàng</TableHead>
-            <TableHead className="w-36">Số tiền</TableHead>
+            <TableHead className="w-48">Số tiền</TableHead>
             <TableHead className="w-36">Trạng thái</TableHead>
             <TableHead className="text-center pr-5 w-32">Thao tác</TableHead>
           </TableRow>
@@ -73,9 +73,7 @@ export default function OrderList({
         <TableBody>
           {orders.map((order) => {
             const isPaid = order.status === statusOrders.PAID
-            const cfg         = statusConfig[order.status] ?? { dot: 'bg-slate-400', badge: 'bg-slate-100 text-slate-600 border-slate-200' }
-            const firstItem   = order.items[0]
-            const extraItems  = order.items.length - 1
+            const cfg    = statusConfig[order.status] ?? { dot: 'bg-slate-400', badge: 'bg-slate-100 text-slate-600 border-slate-200' }
 
             return (
               <TableRow
@@ -85,19 +83,14 @@ export default function OrderList({
               >
                 {/* Sản phẩm */}
                 <TableCell className="pl-5 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border bg-muted">
-                      <Package className="h-4 w-4 text-muted-foreground/50" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold max-w-44">
-                        {firstItem?.name ?? '—'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {extraItems > 0
-                          ? `+${extraItems} sản phẩm khác`
-                          : `${firstItem?.quantity ?? 1} cái`}
-                      </p>
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 space-y-0.5">
+                      {order.items.map((item, i) => (
+                        <p key={i} className="text-sm leading-snug">
+                          <span className="font-medium">{item.name}</span>
+                          <span className="text-muted-foreground"> x{item.quantity}</span>
+                        </p>
+                      ))}
                     </div>
                   </div>
                 </TableCell>
@@ -125,7 +118,18 @@ export default function OrderList({
 
                 {/* Số tiền */}
                 <TableCell className="py-3">
-                  <p className="text-sm font-bold">{formatVND(order.totalAmount)}</p>
+                  <p className="text-sm font-bold tabular-nums">{formatVND(order.totalAmount)}</p>
+                  <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
+                    Vốn: {formatVND(order.totalAmount - order.profit)}
+                  </p>
+                  <p className={cn(
+                    'text-[11px] font-semibold tabular-nums',
+                    order.profit > 0 && 'text-emerald-600 dark:text-emerald-400',
+                    order.profit < 0 && 'text-red-500 dark:text-red-400',
+                    order.profit === 0 && 'text-muted-foreground',
+                  )}>
+                    {order.profit >= 0 ? 'Lãi' : 'Lỗ'}: {formatProfit(order.profit)}
+                  </p>
                 </TableCell>
 
                 {/* Trạng thái */}
@@ -137,7 +141,7 @@ export default function OrderList({
                 </TableCell>
 
                 {/* Thao tác */}
-                <TableCell className="pr-5 py-3">
+                <TableCell className="pr-5 py-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center justify-center gap-1">
                     <Button
                       variant="outline" size="sm"
