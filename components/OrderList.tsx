@@ -25,16 +25,8 @@ interface OrderListProps {
 }
 
 const statusConfig: Record<string, { dot: string; badge: string }> = {
-  [statusOrders.UNPAID]:     { dot: 'bg-red-500',    badge: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30' },
-  [statusOrders.PAID]:       { dot: 'bg-emerald-500',badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30' },
-  [statusOrders.PROCESSING]: { dot: 'bg-blue-500',   badge: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 dark:border-blue-500/30' },
-  [statusOrders.PENDING]:    { dot: 'bg-amber-500',  badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 dark:border-amber-500/30' },
-  [statusOrders.SHIPPED]:    { dot: 'bg-purple-500', badge: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 dark:border-purple-500/30' },
-  [statusOrders.DELIVERED]:  { dot: 'bg-teal-500',   badge: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20 dark:border-teal-500/30' },
-  [statusOrders.COMPLETED]:  { dot: 'bg-zinc-400',   badge: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20 dark:border-zinc-500/30' },
-  [statusOrders.CANCELLED]:  { dot: 'bg-orange-500', badge: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20 dark:border-orange-500/30' },
-  [statusOrders.RETURNED]:   { dot: 'bg-pink-500',   badge: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20 dark:border-pink-500/30' },
-  [statusOrders.FAILED]:     { dot: 'bg-red-700',    badge: 'bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30 dark:border-red-500/40' },
+  [statusOrders.UNPAID]: { dot: 'bg-red-500',     badge: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30' },
+  [statusOrders.PAID]:   { dot: 'bg-emerald-500', badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30' },
 }
 
 function Initials({ name }: { name?: string }) {
@@ -80,7 +72,7 @@ export default function OrderList({
         </TableHeader>
         <TableBody>
           {orders.map((order) => {
-            const isCompleted = order.status === statusOrders.COMPLETED
+            const isPaid = order.status === statusOrders.PAID
             const cfg         = statusConfig[order.status] ?? { dot: 'bg-slate-400', badge: 'bg-slate-100 text-slate-600 border-slate-200' }
             const firstItem   = order.items[0]
             const extraItems  = order.items.length - 1
@@ -149,7 +141,7 @@ export default function OrderList({
                   <div className="flex items-center justify-center gap-1">
                     <Button
                       variant="outline" size="sm"
-                      disabled={isCompleted}
+                      disabled={isPaid}
                       onClick={() => onEdit(order)}
                       className="h-7 px-2 text-xs"
                     >
@@ -157,7 +149,7 @@ export default function OrderList({
                     </Button>
                     <Button
                       variant="ghost" size="icon-sm"
-                      disabled={isCompleted}
+                      disabled={isPaid}
                       onClick={() => onComplete(order)}
                       title="Đánh dấu hoàn thành"
                       className="hover:text-green-600 hover:bg-emerald-500/10 dark:hover:text-emerald-400"
@@ -166,7 +158,7 @@ export default function OrderList({
                     </Button>
                     <Button
                       variant="ghost" size="icon-sm"
-                      disabled={isCompleted}
+                      disabled={isPaid}
                       onClick={() => onDelete(order)}
                       title="Xóa"
                       className="hover:text-destructive hover:bg-destructive/10"

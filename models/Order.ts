@@ -45,7 +45,7 @@ const OrderSchema: Schema = new Schema(
     status: {
       type: String,
       enum: Object.values(statusOrders),
-      default: statusOrders.PENDING,
+      default: statusOrders.UNPAID,
     },
   },
   { timestamps: true },

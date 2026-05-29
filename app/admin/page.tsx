@@ -77,16 +77,8 @@ function StatCard({
 
 /* ── Order status bar ── */
 const STATUS_COLORS: Record<string, string> = {
-  [statusOrders.UNPAID]:     'bg-red-500',
-  [statusOrders.PAID]:       'bg-green-500',
-  [statusOrders.PROCESSING]: 'bg-blue-500',
-  [statusOrders.COMPLETED]:  'bg-slate-400',
-  [statusOrders.CANCELLED]:  'bg-orange-500',
-  [statusOrders.PENDING]:    'bg-yellow-500',
-  [statusOrders.SHIPPED]:    'bg-purple-500',
-  [statusOrders.DELIVERED]:  'bg-teal-500',
-  [statusOrders.RETURNED]:   'bg-pink-500',
-  [statusOrders.FAILED]:     'bg-red-800',
+  [statusOrders.UNPAID]: 'bg-red-500',
+  [statusOrders.PAID]:   'bg-emerald-500',
 }
 
 function StatusDistribution({ orders }: { orders: Order[] }) {
@@ -120,11 +112,8 @@ function StatusDistribution({ orders }: { orders: Order[] }) {
 
 /* ── Recent orders mini-table ── */
 const STATUS_BADGE: Record<string, string> = {
-  [statusOrders.UNPAID]:     'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30',
-  [statusOrders.PAID]:       'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
-  [statusOrders.PROCESSING]: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 dark:border-blue-500/30',
-  [statusOrders.COMPLETED]:  'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20 dark:border-zinc-500/30',
-  [statusOrders.CANCELLED]:  'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20 dark:border-orange-500/30',
+  [statusOrders.UNPAID]: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30',
+  [statusOrders.PAID]:   'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
 }
 
 function RecentOrders({ orders, loading }: { orders: Order[]; loading: boolean }) {
@@ -248,17 +237,23 @@ export default function DashboardPage() {
   }, [])
 
   const revenue = useMemo(
-    () => data.orders.reduce((s, o) => s + o.totalAmount, 0),
+    () => data.orders
+      .filter((o) => o.status === statusOrders.PAID)
+      .reduce((s, o) => s + o.totalAmount, 0),
     [data.orders],
   )
-  const unpaidCount  = data.orders.filter((o) => o.status === statusOrders.UNPAID).length
+  const unpaidCount   = data.orders.filter((o) => o.status === statusOrders.UNPAID).length
   const lowStockCount = data.products.filter((p) => p.stock < 20).length
+  const inventoryValue = useMemo(
+    () => data.products.reduce((s, p) => s + p.stock * p.originalPrice, 0),
+    [data.products],
+  )
 
   const statCards = [
     {
       label: 'Tổng doanh thu',
       value: loading ? '—' : formatVND(revenue),
-      sub: 'Tổng tất cả đơn hàng',
+      sub: 'Tổng các đơn đã thanh toán',
       icon: Wallet,
       href: '/orders',
       accent: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
@@ -292,8 +287,8 @@ export default function DashboardPage() {
     },
     {
       label: 'Giá trị kho hàng',
-      value: loading ? '—' : formatVND(data.products.reduce((s, p) => s + p.stock * p.sellingPrice, 0)),
-      sub: 'Theo giá bán',
+      value: loading ? '—' : formatVND(inventoryValue),
+      sub: 'Theo giá vốn',
       icon: TrendingUp,
       accent: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 dark:border-amber-500/30',
     },

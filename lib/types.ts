@@ -33,27 +33,11 @@ export interface OrderItem {
 export const statusOrders = {
   UNPAID: 'Unpaid',
   PAID: 'Paid',
-  PROCESSING: 'Processing',
-  PENDING: 'Pending',
-  COMPLETED: 'Completed',
-  CANCELLED: 'Cancelled',
-  SHIPPED: 'Shipped',
-  DELIVERED: 'Delivered',
-  RETURNED: 'Returned',
-  FAILED: 'Failed',
 } as const
 
 export const statusOrdersVN: Record<string, string> = {
   [statusOrders.UNPAID]: 'Chưa thanh toán',
   [statusOrders.PAID]: 'Đã thanh toán',
-  [statusOrders.PROCESSING]: 'Đang xử lý',
-  [statusOrders.PENDING]: 'Chờ xử lý',
-  [statusOrders.COMPLETED]: 'Hoàn thành',
-  [statusOrders.CANCELLED]: 'Đã hủy',
-  [statusOrders.SHIPPED]: 'Đã gửi',
-  [statusOrders.DELIVERED]: 'Đã giao',
-  [statusOrders.RETURNED]: 'Trả lại',
-  [statusOrders.FAILED]: 'Thất bại',
 }
 
 export type statusOrders = (typeof statusOrders)[keyof typeof statusOrders]

@@ -18,16 +18,8 @@ interface OrderDetailModalProps {
 }
 
 const statusBadgeClass: Record<string, string> = {
-  'Paid':       'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
-  'Unpaid':     'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30',
-  'Processing': 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 dark:border-blue-500/30',
-  'Completed':  'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20 dark:border-zinc-500/30',
-  'Cancelled':  'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20 dark:border-orange-500/30',
-  'Pending':    'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 dark:border-amber-500/30',
-  'Shipped':    'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 dark:border-purple-500/30',
-  'Delivered':  'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20 dark:border-teal-500/30',
-  'Returned':   'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20 dark:border-pink-500/30',
-  'Failed':     'bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30 dark:border-red-500/40',
+  'Paid':   'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
+  'Unpaid': 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30',
 }
 
 export default function OrderDetailModal({ order, onClose }: OrderDetailModalProps) {

@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "migrate:statuses": "node scripts/migrate-statuses.mjs",
     "backup": "bash scripts/backup.sh",
     "backup:setup": "bash scripts/setup-cron.sh",
     "backup:remove": "bash scripts/remove-cron.sh"

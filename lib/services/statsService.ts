@@ -134,11 +134,13 @@ export async function getStats(range: Range): Promise<StatsResult> {
   await dbConnect()
   const w = buildWindow(range)
 
+  const paidOnly = { $cond: [{ $eq: ['$status', statusOrders.PAID] }, 1, 0] }
+
   const groupStage = {
     _id: { $dateToString: { format: w.format, date: '$createdAt', timezone: TZ } },
     orders:  { $sum: 1 },
-    revenue: { $sum: '$totalAmount' },
-    profit:  { $sum: '$profit' },
+    revenue: { $sum: { $multiply: ['$totalAmount', paidOnly] } },
+    profit:  { $sum: { $multiply: ['$profit',      paidOnly] } },
   }
 
   const projectStage = {
@@ -155,7 +157,6 @@ export async function getStats(range: Range): Promise<StatsResult> {
   }>([
     {
       $match: {
-        status:    { $nin: [statusOrders.CANCELLED, statusOrders.FAILED] },
         createdAt: { $gte: w.prevStart, $lt: w.end },
       },
     },

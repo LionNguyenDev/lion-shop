@@ -46,10 +46,8 @@ type CreateModal = 'closed' | 'form' | 'success'
 const PAYMENT_STATUSES = [statusOrders.PAID, statusOrders.UNPAID]
 
 const statusBadgeClass: Record<string, string> = {
-  [statusOrders.UNPAID]:     'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30',
-  [statusOrders.PAID]:       'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
-  [statusOrders.PROCESSING]: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 dark:border-blue-500/30',
-  [statusOrders.COMPLETED]:  'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20 dark:border-zinc-500/30',
+  [statusOrders.UNPAID]: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30',
+  [statusOrders.PAID]:   'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
 }
 
 export default function OrdersPage() {
@@ -89,10 +87,9 @@ export default function OrdersPage() {
 
   /* ── Stats ── */
   const stats = useMemo(() => [
-    { label: 'Tổng cộng', value: orders.length, color: 'text-foreground', bar: 'bg-primary' },
+    { label: 'Tổng cộng',       value: orders.length, color: 'text-foreground', bar: 'bg-primary' },
     { label: 'Chưa thanh toán', value: orders.filter((o) => o.status === statusOrders.UNPAID).length, color: 'text-red-600 dark:text-red-400', bar: 'bg-red-500 dark:bg-red-400' },
-    { label: 'Hoàn thành', value: orders.filter((o) => o.status === statusOrders.COMPLETED).length, color: 'text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500 dark:bg-emerald-400' },
-    { label: 'Đã hủy', value: orders.filter((o) => o.status === statusOrders.CANCELLED || o.status === statusOrders.FAILED).length, color: 'text-orange-600 dark:text-orange-400', bar: 'bg-orange-500 dark:bg-orange-400' },
+    { label: 'Đã thanh toán',   value: orders.filter((o) => o.status === statusOrders.PAID).length,   color: 'text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500 dark:bg-emerald-400' },
   ], [orders])
 
   /* ── Filter ── */
@@ -180,9 +177,9 @@ export default function OrdersPage() {
       </div>
 
       {/* ── Stats ── */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {loading
-          ? [...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)
+          ? [...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)
           : stats.map((s) => (
               <Card key={s.label} size="sm">
                 <CardContent className="p-4">

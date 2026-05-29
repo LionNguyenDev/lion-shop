@@ -89,6 +89,7 @@ export default function OrderNotesPage() {
         const res  = await fetch('/api/order-notes')
         const data = await res.json()
         setNotes(data)
+        setCollapsed(new Set((data as OrderNote[]).map((n) => getDayKey(n.createdAt))))
       } catch {
         toast.error('Không thể tải note đơn hàng')
       } finally {
