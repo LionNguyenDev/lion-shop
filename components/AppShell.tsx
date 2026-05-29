@@ -7,6 +7,7 @@ interface AppShellProps {
   description?: string
   orderBadge?: number
   productBadge?: number
+  customerBadge?: number
 }
 
 export function AppShell({
@@ -15,12 +16,13 @@ export function AppShell({
   description,
   orderBadge,
   productBadge,
+  customerBadge,
 }: AppShellProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Sidebar — hidden on mobile */}
       <div className="hidden lg:flex lg:flex-col lg:shrink-0">
-        <Sidebar orderBadge={orderBadge} productBadge={productBadge} />
+        <Sidebar orderBadge={orderBadge} productBadge={productBadge} customerBadge={customerBadge} />
       </div>
 
       {/* Main column */}
@@ -30,6 +32,7 @@ export function AppShell({
           description={description}
           orderBadge={orderBadge}
           productBadge={productBadge}
+          customerBadge={customerBadge}
         />
         <main className="flex-1 overflow-y-auto">
           <div className="container mx-auto p-6">{children}</div>

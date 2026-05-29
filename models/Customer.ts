@@ -3,16 +3,18 @@ import mongoose, { type Document, type Model, Schema } from 'mongoose'
 export interface ICustomer extends Document {
   name: string
   phone: string
-  address: string
+  address?: string
+  orderCount: number
   createdAt: Date
   updatedAt: Date
 }
 
 const CustomerSchema: Schema = new Schema(
   {
-    name:    { type: String, required: true, trim: true },
-    phone:   { type: String, required: true, unique: true, trim: true },
-    address: { type: String, required: true, trim: true },
+    name:       { type: String, required: true, trim: true },
+    phone:      { type: String, required: true, unique: true, trim: true },
+    address:    { type: String, trim: true },
+    orderCount: { type: Number, default: 0 },
   },
   { timestamps: true },
 )

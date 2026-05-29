@@ -1,9 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Pagination } from '@/components/ui/pagination'
 import { toast } from 'sonner'
-import { CheckCircle, ListOrdered, Plus, Search, SlidersHorizontal, XCircle } from 'lucide-react'
+import { CalendarDays, CheckCircle, ListOrdered, Plus, Search, SlidersHorizontal, XCircle } from 'lucide-react'
 import { AppShell } from '@/components/AppShell'
 import OrderList from '@/components/OrderList'
 import OrderForm from '@/components/OrderForm'
@@ -14,6 +14,7 @@ import { Order, statusOrders, statusOrdersVN } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { DateInput } from '@/components/ui/date-input'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -44,6 +45,12 @@ import {
 type CreateModal = 'closed' | 'form' | 'success'
 
 const PAYMENT_STATUSES = [statusOrders.PAID, statusOrders.UNPAID]
+const PAGE_SIZE = 10
+
+function todayISO() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 const statusBadgeClass: Record<string, string> = {
   [statusOrders.UNPAID]: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30',
@@ -53,6 +60,7 @@ const statusBadgeClass: Record<string, string> = {
 export default function OrdersPage() {
   const [orders, setOrders]               = useState<Order[]>([])
   const [loading, setLoading]             = useState(true)
+  const [refreshKey, setRefreshKey]       = useState(0)
   const [createModal, setCreateModal]     = useState<CreateModal>('closed')
   const [createdOrder, setCreatedOrder]   = useState<Order | null>(null)
   const [editingOrder, setEditingOrder]   = useState<Order | null>(null)
@@ -60,57 +68,50 @@ export default function OrdersPage() {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [search, setSearch]               = useState('')
   const [statusFilter, setStatusFilter]   = useState('')
+  const [dateFrom, setDateFrom]           = useState('')
+  const [dateTo, setDateTo]               = useState('')
   const [page, setPage]                   = useState(1)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-  const PAGE_SIZE = 10
-
-  const fetchOrders = useCallback(async () => {
-    try {
-      const res  = await fetch('/api/orders')
-      const data = await res.json()
-      setOrders(data)
-    } catch {
-      toast.error('Không thể tải đơn hàng')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
 
   useEffect(() => {
-    fetchOrders()
-  }, [fetchOrders])
+    let cancelled = false
+    fetch('/api/orders')
+      .then((r) => r.json())
+      .then((data) => { if (!cancelled) setOrders(data) })
+      .catch(() => { if (!cancelled) toast.error('Không thể tải đơn hàng') })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [refreshKey])
 
   const unpaidCount = useMemo(
     () => orders.filter((o) => o.status === statusOrders.UNPAID).length,
     [orders],
   )
 
-  /* ── Stats ── */
   const stats = useMemo(() => [
     { label: 'Tổng cộng',       value: orders.length, color: 'text-foreground', bar: 'bg-primary' },
     { label: 'Chưa thanh toán', value: orders.filter((o) => o.status === statusOrders.UNPAID).length, color: 'text-red-600 dark:text-red-400', bar: 'bg-red-500 dark:bg-red-400' },
     { label: 'Đã thanh toán',   value: orders.filter((o) => o.status === statusOrders.PAID).length,   color: 'text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500 dark:bg-emerald-400' },
   ], [orders])
 
-  /* ── Filter ── */
   const filteredOrders = useMemo(() => {
-    const q = search.toLowerCase()
+    const q    = search.toLowerCase()
+    const from = dateFrom ? new Date(dateFrom) : null
+    const to   = dateTo   ? new Date(`${dateTo}T23:59:59`) : null
     return orders.filter((o) => {
       const matchSearch = !q || o.name?.toLowerCase().includes(q) || o._id.toLowerCase().includes(q) || o.phone?.includes(q)
       const matchStatus = !statusFilter || o.status === statusFilter
-      return matchSearch && matchStatus
+      const created     = new Date(o.createdAt)
+      const matchFrom   = !from || created >= from
+      const matchTo     = !to   || created <= to
+      return matchSearch && matchStatus && matchFrom && matchTo
     })
-  }, [orders, search, statusFilter])
+  }, [orders, search, statusFilter, dateFrom, dateTo])
 
-  const totalPages   = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE))
-  const pagedOrders  = filteredOrders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const totalPages  = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE))
+  const pagedOrders = filteredOrders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  /* ── Actions ── */
-  const handleCreateSuccess = (order: Order) => {
-    setCreatedOrder(order)
-    setCreateModal('success')
-    fetchOrders()
-  }
+  const handleCreateSuccess = (order: Order) => { setCreatedOrder(order); setCreateModal('success'); setRefreshKey((k) => k + 1) }
 
   const handleEditSaved = (updated: Order) => {
     setOrders((prev) => prev.map((o) => (o._id === updated._id ? updated : o)))
@@ -216,8 +217,44 @@ export default function OrdersPage() {
             {PAYMENT_STATUSES.map((s) => <SelectItem key={s} value={s}>{statusOrdersVN[s]}</SelectItem>)}
           </SelectContent>
         </Select>
-        {(search || statusFilter) && (
-          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setStatusFilter(''); setPage(1) }}>
+
+        {/* Date range */}
+        <div className="flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
+          <DateInput
+            value={dateFrom}
+            onChange={(v) => { setDateFrom(v); setPage(1) }}
+            className="w-36"
+          />
+          <span className="text-muted-foreground text-sm">—</span>
+          <DateInput
+            value={dateTo}
+            onChange={(v) => { setDateTo(v); setPage(1) }}
+            className="w-36"
+          />
+        </div>
+
+        {(() => {
+          const t = todayISO()
+          const isToday = dateFrom === t && dateTo === t
+          return (
+            <Button
+              variant={isToday ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                const t2 = todayISO()
+                if (isToday) { setDateFrom(''); setDateTo('') }
+                else { setDateFrom(t2); setDateTo(t2) }
+                setPage(1)
+              }}
+            >
+              Đơn hôm nay
+            </Button>
+          )
+        })()}
+
+        {(search || statusFilter || dateFrom || dateTo) && (
+          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); setPage(1) }}>
             <XCircle className="h-4 w-4" /> Xóa bộ lọc
           </Button>
         )}
@@ -240,12 +277,7 @@ export default function OrdersPage() {
         onRowClick={setSelectedOrder}
       />
 
-      <Pagination
-        page={page}
-        totalPages={totalPages}
-        onPageChange={setPage}
-        className="mt-4"
-      />
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} className="mt-4" />
 
       {/* ── Create / Success dialog ── */}
       <Dialog

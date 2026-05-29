@@ -249,7 +249,7 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
       .then((r) => r.json())
       .then((data: Customer | null) => {
         if (cancelled || !data) return
-        setCustomerInfo({ name: data.name, phone: data.phone, address: data.address })
+        setCustomerInfo({ name: data.name, phone: data.phone, address: data.address ?? '' })
         setAutoFilled(true)
       })
       .catch(() => {})
@@ -353,7 +353,7 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
             <NameAutocomplete
               value={customerInfo.name}
               onChange={(val) => { setCustomerInfo((p) => ({ ...p, name: val })); setAutoFilled(false) }}
-              onSelect={(c) => { setCustomerInfo({ name: c.name, phone: c.phone, address: c.address }); setAutoFilled(true) }}
+              onSelect={(c) => { setCustomerInfo({ name: c.name, phone: c.phone, address: c.address ?? '' }); setAutoFilled(true) }}
             />
           </div>
           <div className="space-y-1">

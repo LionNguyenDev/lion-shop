@@ -59,7 +59,8 @@ export interface Customer {
   _id: string
   name: string
   phone: string
-  address: string
+  address?: string
+  orderCount: number
   createdAt: string
   updatedAt: string
 }

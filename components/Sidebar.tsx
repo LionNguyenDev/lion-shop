@@ -13,6 +13,7 @@ import {
   ShoppingCart,
   StickyNote,
   Store,
+  Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -36,6 +37,7 @@ interface NavItem {
 interface SidebarProps {
   orderBadge?: number
   productBadge?: number
+  customerBadge?: number
 }
 
 interface CurrentUser {
@@ -46,10 +48,11 @@ interface CurrentUser {
 }
 
 const baseNav: NavItem[] = [
-  { label: 'Tổng quan',   href: '/admin',           icon: LayoutDashboard },
-  { label: 'Đơn hàng',   href: '/admin/orders',    icon: ShoppingCart },
-  { label: 'Sản phẩm',   href: '/admin/products',  icon: Package },
-  { label: 'Note đơn',   href: '/admin/notes',     icon: StickyNote },
+  { label: 'Tổng quan',    href: '/admin',             icon: LayoutDashboard },
+  { label: 'Đơn hàng',    href: '/admin/orders',      icon: ShoppingCart },
+  { label: 'Khách hàng',  href: '/admin/customers',   icon: Users },
+  { label: 'Sản phẩm',    href: '/admin/products',    icon: Package },
+  { label: 'Note đơn',    href: '/admin/notes',       icon: StickyNote },
 ]
 
 const systemNav: NavItem[] = [
@@ -87,7 +90,7 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   )
 }
 
-export function Sidebar({ orderBadge, productBadge }: SidebarProps) {
+export function Sidebar({ orderBadge, productBadge, customerBadge }: SidebarProps) {
   const pathname = usePathname()
   const router   = useRouter()
   const [user, setUser] = useState<CurrentUser | null>(null)
@@ -110,8 +113,9 @@ export function Sidebar({ orderBadge, productBadge }: SidebarProps) {
   const mainNav: NavItem[] = baseNav.map((item) => ({
     ...item,
     badge:
-      item.href === '/orders'   ? orderBadge
-      : item.href === '/products' ? productBadge
+      item.href === '/admin/orders'     ? orderBadge
+      : item.href === '/admin/products' ? productBadge
+      : item.href === '/admin/customers' ? customerBadge
       : item.badge,
   }))
 

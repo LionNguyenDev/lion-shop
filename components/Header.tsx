@@ -26,6 +26,7 @@ interface HeaderProps {
   description?: string
   orderBadge?: number
   productBadge?: number
+  customerBadge?: number
 }
 
 function ThemeToggle() {
@@ -46,7 +47,7 @@ function ThemeToggle() {
   )
 }
 
-export function Header({ title, description, orderBadge, productBadge }: HeaderProps) {
+export function Header({ title, description, orderBadge, productBadge, customerBadge }: HeaderProps) {
   const router = useRouter()
 
   const handleSignOut = async () => {
@@ -73,7 +74,7 @@ export function Header({ title, description, orderBadge, productBadge }: HeaderP
           <Menu className="h-5 w-5" />
         </SheetTrigger>
         <SheetContent side="left" className="w-60 p-0">
-          <Sidebar orderBadge={orderBadge} productBadge={productBadge} />
+          <Sidebar orderBadge={orderBadge} productBadge={productBadge} customerBadge={customerBadge} />
         </SheetContent>
       </Sheet>
 
