@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label'
 interface OrderFormProps {
   onSuccess?: (order: Order) => void
   onCancel?: () => void
-  initialItems?: { product: string; quantity: number; sellingPrice: number }[]
+  initialItems?: { product: string; quantity: number; sellingPrice: number; warehouse?: Warehouse }[]
 }
 
 /* ── Debounce hook ── */
@@ -275,10 +275,9 @@ function ProductSearch({ selectedProduct, warehouse, onSelect }: ProductSearchPr
 export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFormProps) {
   const [productCache, setProductCache] = useState<Record<string, Product>>({})
   const [selectedItems, setSelectedItems] = useState<
-    { product: string; quantity: number; sellingPrice: number }[]
-  >(initialItems ?? [])
+    { product: string; quantity: number; sellingPrice: number; warehouse: Warehouse }[]
+  >((initialItems ?? []).map((it) => ({ ...it, warehouse: it.warehouse ?? 'HN' })))
   const [customerInfo, setCustomerInfo] = useState({ name: '', address: '', phone: '' })
-  const [warehouse, setWarehouse]       = useState<Warehouse>('HN')
   const [autoFilled, setAutoFilled]     = useState(false)
   const [confirmOpen, setConfirmOpen]   = useState(false)
   const [loading, setLoading]           = useState(false)
@@ -321,10 +320,12 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
     return () => { cancelled = true }
   }, [debouncedPhone])
 
-  const addItem    = () => setSelectedItems((prev) => [...prev, { product: '', quantity: 1, sellingPrice: 0 }])
+  const addItem    = () => setSelectedItems((prev) => [...prev, { product: '', quantity: 1, sellingPrice: 0, warehouse: 'HN' }])
   const removeItem = (i: number) => setSelectedItems((prev) => prev.filter((_, idx) => idx !== i))
   const updateItem = (i: number, field: 'quantity' | 'sellingPrice', value: number) =>
     setSelectedItems((prev) => { const next = [...prev]; next[i] = { ...next[i], [field]: value }; return next })
+  const updateItemWarehouse = (i: number, w: Warehouse) =>
+    setSelectedItems((prev) => { const next = [...prev]; next[i] = { ...next[i], warehouse: w }; return next })
   const handleProductSelect = (i: number, product: Product) => {
     setProductCache((prev) => ({ ...prev, [product._id]: product }))
     setSelectedItems((prev) => { const next = [...prev]; next[i] = { ...next[i], product: product._id, sellingPrice: product.sellingPrice }; return next })
@@ -348,9 +349,8 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: selectedItems.map(({ product, quantity, sellingPrice }) => ({ product, quantity, price: sellingPrice })),
+          items: selectedItems.map(({ product, quantity, sellingPrice, warehouse }) => ({ product, quantity, price: sellingPrice, warehouse })),
           ...customerInfo,
-          warehouse,
           status,
         }),
       })
@@ -380,27 +380,6 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
       {error && (
         <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>
       )}
-
-      {/* ── Chọn kho xuất hàng ── */}
-      <div className="space-y-1.5">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Kho xuất hàng</p>
-        <div className="flex gap-2">
-          {(Object.entries(WAREHOUSES) as [Warehouse, string][]).map(([key, label]) => (
-            <button
-              key={key} type="button"
-              onClick={() => setWarehouse(key)}
-              className={cn(
-                'flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
-                warehouse === key
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background text-muted-foreground border-border hover:bg-muted',
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* ── Thông tin khách hàng (compact) ── */}
       <div className="space-y-2 p-3 bg-muted/40 rounded-lg border">
@@ -460,7 +439,7 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
                 <div className="flex-1 min-w-0">
                   <ProductSearch
                     selectedProduct={productCache[item.product]}
-                    warehouse={warehouse}
+                    warehouse={item.warehouse}
                     onSelect={(p) => handleProductSelect(index, p)}
                   />
                 </div>
@@ -473,7 +452,26 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
                 </Button>
               </div>
 
-              {/* Row 2: giá vốn (read-only) + giá bán + số lượng */}
+              {/* Row 2: chọn kho */}
+              <div className="flex items-center gap-1.5">
+                <p className="text-[11px] text-muted-foreground shrink-0">Kho:</p>
+                {(Object.entries(WAREHOUSES) as [Warehouse, string][]).map(([key, label]) => (
+                  <button
+                    key={key} type="button"
+                    onClick={() => updateItemWarehouse(index, key)}
+                    className={cn(
+                      'px-2 py-0.5 rounded border text-xs font-medium transition-colors',
+                      item.warehouse === key
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background text-muted-foreground border-border hover:bg-muted',
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Row 3: giá vốn (read-only) + giá bán + số lượng */}
               <div className="flex items-end gap-2">
                 {selected && (
                   <div className="flex-1 space-y-0.5">

@@ -6,6 +6,7 @@ export interface IOrderItem {
   quantity: number
   price: number
   originalPrice: number
+  warehouse?: keyof typeof WAREHOUSES
 }
 
 export interface IOrder extends Document {
@@ -27,6 +28,7 @@ const OrderItemSchema: Schema = new Schema({
   quantity: { type: Number, required: true, min: 1 },
   price: { type: Number, required: true, min: 0 },
   originalPrice: { type: Number, required: true, min: 0 },
+  warehouse: { type: String, enum: Object.keys(WAREHOUSES) },
 })
 
 const OrderSchema: Schema = new Schema(

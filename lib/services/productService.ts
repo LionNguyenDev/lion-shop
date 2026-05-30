@@ -31,7 +31,7 @@ export async function getProducts({ search, brand, page = 1, limit = 10 }: Produ
   const skip = (page - 1) * limit
 
   const [raw, total, statsResult, brands] = await Promise.all([
-    Product.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    Product.find(filter).sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit).lean(),
     Product.countDocuments(filter),
     Product.aggregate([
       {

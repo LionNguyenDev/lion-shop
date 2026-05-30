@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Pagination } from '@/components/ui/pagination'
 import { toast } from 'sonner'
-import { CalendarDays, CheckCircle, ListOrdered, Plus, Search, SlidersHorizontal, XCircle } from 'lucide-react'
+import { CalendarDays, CheckCircle, ListOrdered, Plus, Search, SlidersHorizontal, Trash2, XCircle } from 'lucide-react'
 import { AppShell } from '@/components/AppShell'
 import OrderList from '@/components/OrderList'
 import OrderForm from '@/components/OrderForm'
@@ -64,9 +64,12 @@ export default function OrdersPage() {
   const [createModal, setCreateModal]     = useState<CreateModal>('closed')
   const [createdOrder, setCreatedOrder]   = useState<Order | null>(null)
   const [editingOrder, setEditingOrder]   = useState<Order | null>(null)
-  const [deleteTarget, setDeleteTarget]   = useState<Order | null>(null)
-  const [deleteLoading, setDeleteLoading] = useState(false)
-  const [search, setSearch]               = useState('')
+  const [deleteTarget, setDeleteTarget]       = useState<Order | null>(null)
+  const [deleteLoading, setDeleteLoading]     = useState(false)
+  const [selectedIds, setSelectedIds]         = useState<Set<string>>(new Set())
+  const [bulkDeleteOpen, setBulkDeleteOpen]   = useState(false)
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false)
+  const [search, setSearch]                   = useState('')
   const [statusFilter, setStatusFilter]   = useState('')
   const [dateFrom, setDateFrom]           = useState('')
   const [dateTo, setDateTo]               = useState('')
@@ -99,7 +102,7 @@ export default function OrdersPage() {
     const from = dateFrom ? new Date(dateFrom) : null
     const to   = dateTo   ? new Date(`${dateTo}T23:59:59`) : null
     return orders.filter((o) => {
-      const matchSearch = !q || o.name?.toLowerCase().includes(q) || o._id.toLowerCase().includes(q) || o.phone?.includes(q)
+      const matchSearch = !q || o.name?.toLowerCase().includes(q) || o._id.toLowerCase().includes(q) || o.phone?.includes(q) || o.items.some((it) => it.name.toLowerCase().includes(q))
       const matchStatus = !statusFilter || o.status === statusFilter
       const created     = new Date(o.createdAt)
       const matchFrom   = !from || created >= from
@@ -155,6 +158,24 @@ export default function OrdersPage() {
     }
   }
 
+  const confirmBulkDelete = async () => {
+    setBulkDeleteLoading(true)
+    const tid = toast.loading(`Đang xóa ${selectedIds.size} đơn hàng…`)
+    try {
+      await Promise.all(
+        [...selectedIds].map((id) => fetch(`/api/orders/${id}`, { method: 'DELETE' }))
+      )
+      setOrders((prev) => prev.filter((o) => !selectedIds.has(o._id)))
+      setSelectedIds(new Set())
+      setBulkDeleteOpen(false)
+      toast.success(`Đã xóa ${selectedIds.size} đơn hàng`, { id: tid })
+    } catch {
+      toast.error('Xóa thất bại', { id: tid })
+    } finally {
+      setBulkDeleteLoading(false)
+    }
+  }
+
   return (
     <AppShell
       title="Đơn hàng"
@@ -201,7 +222,7 @@ export default function OrdersPage() {
         <div className="relative min-w-56 flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Tìm kiếm theo tên, SĐT, mã đơn…"
+            placeholder="Tìm theo tên KH, SĐT, mã đơn, tên sản phẩm…"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             className="pl-9"
@@ -261,10 +282,26 @@ export default function OrdersPage() {
       </div>
 
       {!loading && (
-        <p className="mb-3 text-xs text-muted-foreground">
-          Hiển thị {pagedOrders.length} trong {filteredOrders.length} đơn hàng
-          {filteredOrders.length !== orders.length && ` (đã lọc từ ${orders.length})`}
-        </p>
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            Hiển thị {pagedOrders.length} trong {filteredOrders.length} đơn hàng
+            {filteredOrders.length !== orders.length && ` (đã lọc từ ${orders.length})`}
+          </p>
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Đã chọn {selectedIds.size} đơn</span>
+              <Button
+                size="sm" variant="destructive"
+                onClick={() => setBulkDeleteOpen(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Xóa {selectedIds.size} đơn
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+                Bỏ chọn
+              </Button>
+            </div>
+          )}
+        </div>
       )}
 
       {/* ── Table ── */}
@@ -275,6 +312,8 @@ export default function OrdersPage() {
         onDelete={setDeleteTarget}
         onComplete={handleComplete}
         onRowClick={setSelectedOrder}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
       />
 
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} className="mt-4" />
@@ -366,6 +405,24 @@ export default function OrdersPage() {
             <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Hủy</AlertDialogCancel>
             <AlertDialogAction variant="destructive" disabled={deleteLoading} onClick={confirmDelete}>
               {deleteLoading ? 'Đang xóa…' : 'Xóa'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Bulk Delete ── */}
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => !open && setBulkDeleteOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa {selectedIds.size} đơn hàng?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tất cả {selectedIds.size} đơn hàng đã chọn sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setBulkDeleteOpen(false)}>Hủy</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" disabled={bulkDeleteLoading} onClick={confirmBulkDelete}>
+              {bulkDeleteLoading ? 'Đang xóa…' : `Xóa ${selectedIds.size} đơn`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

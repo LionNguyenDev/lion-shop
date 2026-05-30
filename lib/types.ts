@@ -28,6 +28,7 @@ export interface OrderItem {
   quantity: number
   price: number
   originalPrice: number
+  warehouse?: Warehouse
 }
 
 export const statusOrders = {

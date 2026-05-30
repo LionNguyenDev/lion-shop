@@ -100,8 +100,8 @@ export default function ProductsPage() {
     return () => clearTimeout(t)
   }, [search, brandFilter])
 
-  const fetchProducts = useCallback(async () => {
-    setLoading(true)
+  const fetchProducts = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const params = new URLSearchParams()
       if (apiSearch) params.set('search', apiSearch)
@@ -120,7 +120,7 @@ export default function ProductsPage() {
     } catch {
       toast.error('Không thể tải sản phẩm')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [apiSearch, apiBrand, page])
 
@@ -144,8 +144,9 @@ export default function ProductsPage() {
     try {
       const res = await fetch(`/api/products/${deleteTarget}`, { method: 'DELETE' })
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Xóa thất bại') }
+      setProducts((prev) => prev.filter((p) => p._id !== deleteTarget))
+      setTotal((prev) => prev - 1)
       setDeleteTarget(null)
-      fetchProducts()
       toast.success('Đã xóa sản phẩm', { id: tid })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Xóa thất bại', { id: tid })
@@ -268,9 +269,13 @@ export default function ProductsPage() {
           <ProductForm
             key={editingProduct?._id ?? 'new'}
             initialData={editingProduct}
-            onSuccess={() => {
+            onSuccess={(product) => {
               closeForm()
-              fetchProducts()
+              if (editingProduct) {
+                setProducts((prev) => prev.map((p) => p._id === product._id ? product : p))
+              } else {
+                fetchProducts(true)
+              }
               toast.success(editingProduct ? 'Đã cập nhật sản phẩm' : 'Đã thêm sản phẩm')
             }}
             onCancel={closeForm}

@@ -25,9 +25,12 @@ export async function POST(request: Request) {
       )
     }
 
-    if (!body.warehouse || !(body.warehouse in WAREHOUSES)) {
+    const invalidItem = body.items.find(
+      (it: { warehouse?: string }) => !it.warehouse || !(it.warehouse in WAREHOUSES),
+    )
+    if (invalidItem) {
       return NextResponse.json(
-        { error: 'Vui lòng chọn kho xuất hàng' },
+        { error: 'Vui lòng chọn kho xuất hàng cho mỗi sản phẩm' },
         { status: 400 },
       )
     }
@@ -37,7 +40,6 @@ export async function POST(request: Request) {
       name: body.name?.trim() ?? '',
       phone: body.phone?.trim() ?? '',
       address: body.address?.trim() ?? '',
-      warehouse: body.warehouse,
       status: body.status,
     })
 

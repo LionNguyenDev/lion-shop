@@ -4,13 +4,16 @@ import { useState } from 'react'
 import { Product } from '@/lib/types'
 import ImageUploadButton from './ImageUploadButton'
 import VndInput from './VndInput'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
+const PRODUCT_TYPES = ['Skincare', 'Nước hoa', 'Son', 'Make up'] as const
+
 interface ProductFormProps {
   initialData?: Product | null
-  onSuccess?: () => void
+  onSuccess?: (product: Product) => void
   onCancel?: () => void
 }
 
@@ -35,6 +38,7 @@ export default function ProductForm({
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (!formData.type) { setError('Vui lòng chọn loại sản phẩm'); return }
     setLoading(true)
     setError('')
 
@@ -47,11 +51,9 @@ export default function ProductForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Đã xảy ra lỗi')
-      }
-      onSuccess?.()
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Đã xảy ra lỗi')
+      onSuccess?.(data as Product)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Đã xảy ra lỗi không xác định')
     } finally {
@@ -79,28 +81,41 @@ export default function ProductForm({
         />
       </div>
 
-      {/* Nhãn hàng & Loại sản phẩm */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="prod-brand">Nhãn hàng</Label>
-          <Input
-            id="prod-brand"
-            required
-            placeholder="VD: L'Oréal"
-            value={formData.brand}
-            onChange={(e) => setFormData((p) => ({ ...p, brand: e.target.value }))}
-          />
+      {/* Nhãn hàng */}
+      <div className="space-y-1.5">
+        <Label htmlFor="prod-brand">Nhãn hàng</Label>
+        <Input
+          id="prod-brand"
+          required
+          placeholder="VD: L'Oréal"
+          value={formData.brand}
+          onChange={(e) => setFormData((p) => ({ ...p, brand: e.target.value }))}
+        />
+      </div>
+
+      {/* Loại sản phẩm */}
+      <div className="space-y-1.5">
+        <Label>Loại sản phẩm</Label>
+        <div className="flex gap-2">
+          {PRODUCT_TYPES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setFormData((p) => ({ ...p, type: t }))}
+              className={cn(
+                'flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
+                formData.type === t
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background text-muted-foreground border-border hover:bg-muted',
+              )}
+            >
+              {t}
+            </button>
+          ))}
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="prod-type">Loại sản phẩm</Label>
-          <Input
-            id="prod-type"
-            required
-            placeholder="VD: Mỹ phẩm, Nước hoa"
-            value={formData.type}
-            onChange={(e) => setFormData((p) => ({ ...p, type: e.target.value }))}
-          />
-        </div>
+        {!formData.type && (
+          <p className="text-xs text-destructive">Vui lòng chọn loại sản phẩm</p>
+        )}
       </div>
 
       {/* Giá */}

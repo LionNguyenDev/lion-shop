@@ -22,6 +22,8 @@ interface OrderListProps {
   onDelete: (order: Order) => void
   onComplete: (order: Order) => void
   onRowClick?: (order: Order) => void
+  selectedIds?: Set<string>
+  onSelectionChange?: (ids: Set<string>) => void
 }
 
 const statusConfig: Record<string, { dot: string; badge: string }> = {
@@ -47,7 +49,33 @@ export default function OrderList({
   onDelete,
   onComplete,
   onRowClick,
+  selectedIds = new Set(),
+  onSelectionChange,
 }: OrderListProps) {
+  const allSelected = orders.length > 0 && orders.every((o) => selectedIds.has(o._id))
+  const someSelected = orders.some((o) => selectedIds.has(o._id))
+
+  const toggleAll = () => {
+    if (!onSelectionChange) return
+    if (allSelected) {
+      const next = new Set(selectedIds)
+      orders.forEach((o) => next.delete(o._id))
+      onSelectionChange(next)
+    } else {
+      const next = new Set(selectedIds)
+      orders.forEach((o) => next.add(o._id))
+      onSelectionChange(next)
+    }
+  }
+
+  const toggleOne = (id: string) => {
+    if (!onSelectionChange) return
+    const next = new Set(selectedIds)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    onSelectionChange(next)
+  }
+
   if (loading)
     return (
       <div className="space-y-2 rounded-xl border bg-card p-4">
@@ -62,7 +90,16 @@ export default function OrderList({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead className="pl-5 w-72">Tên sản phẩm</TableHead>
+            <TableHead className="pl-4 w-10">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected }}
+                onChange={toggleAll}
+                className="h-4 w-4 rounded border-border cursor-pointer accent-primary"
+              />
+            </TableHead>
+            <TableHead className="w-72">Tên sản phẩm</TableHead>
             <TableHead className="w-48">Khách hàng</TableHead>
             <TableHead className="w-40">Mã đơn hàng</TableHead>
             <TableHead className="w-48">Số tiền</TableHead>
@@ -72,17 +109,28 @@ export default function OrderList({
         </TableHeader>
         <TableBody>
           {orders.map((order) => {
-            const isPaid = order.status === statusOrders.PAID
-            const cfg    = statusConfig[order.status] ?? { dot: 'bg-slate-400', badge: 'bg-slate-100 text-slate-600 border-slate-200' }
+            const isPaid   = order.status === statusOrders.PAID
+            const isChecked = selectedIds.has(order._id)
+            const cfg      = statusConfig[order.status] ?? { dot: 'bg-slate-400', badge: 'bg-slate-100 text-slate-600 border-slate-200' }
 
             return (
               <TableRow
                 key={order._id}
-                className={cn('group', onRowClick && 'cursor-pointer hover:bg-muted/50 transition-colors')}
+                className={cn('group', onRowClick && 'cursor-pointer hover:bg-muted/50 transition-colors', isChecked && 'bg-muted/40')}
                 onClick={() => onRowClick?.(order)}
               >
+                {/* Checkbox */}
+                <TableCell className="pl-4 py-3 w-10" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleOne(order._id)}
+                    className="h-4 w-4 rounded border-border cursor-pointer accent-primary"
+                  />
+                </TableCell>
+
                 {/* Sản phẩm */}
-                <TableCell className="pl-5 py-3">
+                <TableCell className="py-3">
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 space-y-0.5">
                       {order.items.map((item, i) => (
@@ -167,7 +215,6 @@ export default function OrderList({
                     </Button>
                     <Button
                       variant="ghost" size="icon-sm"
-                      disabled={isPaid}
                       onClick={() => onDelete(order)}
                       title="Xóa"
                       className="hover:text-destructive hover:bg-destructive/10"

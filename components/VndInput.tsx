@@ -13,17 +13,18 @@ interface VndInputProps {
   placeholder?: string
 }
 
-function formatVnd(n: number): string {
+function formatNum(n: number): string {
   return n.toLocaleString('vi-VN')
 }
 
 export default function VndInput({ value, onChange, className, ...props }: VndInputProps) {
-  const [display, setDisplay] = useState(() => (value === 0 ? '' : formatVnd(value)))
+  const shortValue = value / 1000
+  const [display, setDisplay] = useState(() => (value === 0 ? '' : formatNum(shortValue)))
 
   useEffect(() => {
     const current = parseInt(display.replace(/\./g, '') || '0', 10)
-    if (current !== value) {
-      setDisplay(value === 0 ? '' : formatVnd(value))
+    if (current !== shortValue) {
+      setDisplay(value === 0 ? '' : formatNum(shortValue))
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
@@ -31,12 +32,12 @@ export default function VndInput({ value, onChange, className, ...props }: VndIn
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/\./g, '').replace(/[^\d]/g, '')
     const num = raw === '' ? 0 : parseInt(raw, 10)
-    setDisplay(raw === '' ? '' : formatVnd(num))
-    onChange(num)
+    setDisplay(raw === '' ? '' : formatNum(num))
+    onChange(num * 1000)
   }
 
   const handleBlur = () => {
-    setDisplay(value === 0 ? '0' : formatVnd(value))
+    setDisplay(value === 0 ? '0' : formatNum(shortValue))
   }
 
   return (

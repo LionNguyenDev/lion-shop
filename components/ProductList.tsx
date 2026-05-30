@@ -174,7 +174,7 @@ export default function ProductList({
 
                 {/* Tên + brand + type + ID */}
                 <TableCell className="py-3">
-                  <p className="font-semibold text-sm truncate max-w-52">
+                  <p className="font-semibold text-sm">
                     {product.name}
                   </p>
                   <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">

@@ -17,18 +17,15 @@ export async function getAllOrders() {
 }
 
 export async function createOrder(data: {
-  items: { product: string; quantity: number; price?: number }[]
+  items: { product: string; quantity: number; price?: number; warehouse: Warehouse }[]
   name: string
   address?: string
   phone: string
-  warehouse: Warehouse
   status?: statusOrders
 }) {
   await dbConnect()
   const session = await mongoose.startSession()
   session.startTransaction()
-
-  const field = warehouseField[data.warehouse]
 
   try {
     let totalAmount = 0
@@ -36,12 +33,13 @@ export async function createOrder(data: {
     const orderItems = []
 
     for (const item of data.items) {
+      const field = warehouseField[item.warehouse]
       const product = await Product.findById(item.product).session(session)
       if (!product) throw new Error(`Không tìm thấy sản phẩm: ${item.product}`)
 
       const warehouseStock = (product[field] ?? 0) as number
       if (warehouseStock < item.quantity) {
-        throw new Error(`Kho ${data.warehouse} không đủ hàng cho sản phẩm: ${product.name} (còn ${warehouseStock})`)
+        throw new Error(`Kho ${item.warehouse} không đủ hàng cho sản phẩm: ${product.name} (còn ${warehouseStock})`)
       }
 
       product[field] = warehouseStock - item.quantity
@@ -56,6 +54,7 @@ export async function createOrder(data: {
         quantity: item.quantity,
         price: unitPrice,
         originalPrice: product.originalPrice,
+        warehouse: item.warehouse,
       })
     }
 
@@ -66,7 +65,7 @@ export async function createOrder(data: {
       name: data.name,
       address: data.address ?? '',
       phone: data.phone,
-      warehouse: data.warehouse,
+      warehouse: data.items[0].warehouse,
       status: data.status ?? statusOrders.UNPAID,
     })
 
