@@ -19,10 +19,7 @@ const CustomerSchema: Schema = new Schema(
   { timestamps: true },
 )
 
-// Always delete the cached model so schema changes take effect in dev without a server restart.
-if (mongoose.models.Customer) {
-  delete (mongoose.models as Record<string, unknown>)['Customer']
-}
-const Customer: Model<ICustomer> = mongoose.model<ICustomer>('Customer', CustomerSchema)
+const Customer: Model<ICustomer> =
+  (mongoose.models.Customer as Model<ICustomer>) ?? mongoose.model<ICustomer>('Customer', CustomerSchema)
 
 export default Customer

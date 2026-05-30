@@ -2,8 +2,8 @@ import mongoose, { type Document, type Model, Schema } from 'mongoose'
 
 export interface IProduct extends Document {
   name: string
-  brand: string
-  type: string
+  brand?: string
+  type?: string
   originalPrice: number
   sellingPrice: number
   stockHN: number
@@ -17,8 +17,8 @@ export interface IProduct extends Document {
 const ProductSchema: Schema = new Schema(
   {
     name:          { type: String, required: true, trim: true },
-    brand:         { type: String, required: true, trim: true },
-    type:          { type: String, required: true, trim: true },
+    brand:         { type: String, trim: true, default: '' },
+    type:          { type: String, trim: true, default: '' },
     originalPrice: { type: Number, required: true, min: 0 },
     sellingPrice:  { type: Number, required: true, min: 0 },
     stockHN:       { type: Number, required: true, min: 0, default: 0 },
@@ -29,9 +29,7 @@ const ProductSchema: Schema = new Schema(
   { timestamps: true },
 )
 
-if (mongoose.models.Product) {
-  delete (mongoose.models as Record<string, unknown>)['Product']
-}
-const Product: Model<IProduct> = mongoose.model<IProduct>('Product', ProductSchema)
+const Product: Model<IProduct> =
+  (mongoose.models.Product as Model<IProduct>) ?? mongoose.model<IProduct>('Product', ProductSchema)
 
 export default Product

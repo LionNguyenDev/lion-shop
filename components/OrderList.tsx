@@ -98,9 +98,14 @@ export default function OrderList({
                 {/* Khách hàng */}
                 <TableCell className="py-3">
                   <div className="flex items-center gap-2.5">
-                    <Initials name={order.name} />
+                    <Initials name={order.name?.trim() || 'Khách lẻ'} />
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold max-w-32">{order.name}</p>
+                      <p className={cn(
+                        'truncate text-sm font-semibold max-w-32',
+                        !order.name?.trim() && 'italic text-muted-foreground',
+                      )}>
+                        {order.name?.trim() || 'Khách lẻ'}
+                      </p>
                       <p className="text-xs text-muted-foreground truncate max-w-32">{order.phone}</p>
                     </div>
                   </div>

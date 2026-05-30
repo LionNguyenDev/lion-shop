@@ -66,15 +66,17 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
             <div className="grid grid-cols-2 gap-x-4 px-3 py-2.5 text-sm">
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-0.5">Tên</p>
-                <p className="font-medium">{order.name}</p>
+                <p className={cn('font-medium', !order.name?.trim() && 'italic text-muted-foreground')}>
+                  {order.name?.trim() || 'Khách lẻ'}
+                </p>
               </div>
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-0.5">Điện thoại</p>
-                <p className="font-medium">{order.phone}</p>
+                <p className="font-medium">{order.phone?.trim() || '—'}</p>
               </div>
               <div className="col-span-2 mt-2">
                 <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-0.5">Địa chỉ</p>
-                <p className="font-medium">{order.address}</p>
+                <p className="font-medium">{order.address?.trim() || '—'}</p>
               </div>
             </div>
           </div>

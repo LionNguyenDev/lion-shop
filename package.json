@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "migrate:statuses": "node scripts/migrate-statuses.mjs",
+    "import:products:parse": "python scripts/parse-products-xlsx.py",
+    "import:products": "node scripts/import-products.mjs",
     "backup": "bash scripts/backup.sh",
     "backup:setup": "bash scripts/setup-cron.sh",
     "backup:remove": "bash scripts/remove-cron.sh"

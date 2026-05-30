@@ -12,8 +12,9 @@ export async function GET(request: NextRequest) {
     const result = await getProducts({ search, brand, page, limit })
     return NextResponse.json(result)
   } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
     console.error('Error fetching products:', error)
-    return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to fetch products', detail: msg }, { status: 500 })
   }
 }
 

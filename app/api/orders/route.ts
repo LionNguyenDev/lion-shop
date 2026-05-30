@@ -25,20 +25,6 @@ export async function POST(request: Request) {
       )
     }
 
-    if (!body.name?.trim()) {
-      return NextResponse.json(
-        { error: 'Customer name is required' },
-        { status: 400 },
-      )
-    }
-
-    if (!body.phone?.trim()) {
-      return NextResponse.json(
-        { error: 'Phone number is required' },
-        { status: 400 },
-      )
-    }
-
     if (!body.warehouse || !(body.warehouse in WAREHOUSES)) {
       return NextResponse.json(
         { error: 'Vui lòng chọn kho xuất hàng' },
@@ -48,8 +34,8 @@ export async function POST(request: Request) {
 
     const order = await createOrder({
       items: body.items,
-      name: body.name.trim(),
-      phone: body.phone.trim(),
+      name: body.name?.trim() ?? '',
+      phone: body.phone?.trim() ?? '',
       address: body.address?.trim() ?? '',
       warehouse: body.warehouse,
       status: body.status,

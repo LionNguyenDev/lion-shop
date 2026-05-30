@@ -21,10 +21,7 @@ const UserSchema: Schema = new Schema(
   { timestamps: true },
 )
 
-// Always recreate the cached model so schema changes take effect in dev
-if (mongoose.models.User) {
-  delete (mongoose.models as Record<string, unknown>)['User']
-}
-const User: Model<IUser> = mongoose.model<IUser>('User', UserSchema)
+const User: Model<IUser> =
+  (mongoose.models.User as Model<IUser>) ?? mongoose.model<IUser>('User', UserSchema)
 
 export default User

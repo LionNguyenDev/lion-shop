@@ -2,7 +2,7 @@
 
 import { MapPin, Phone, Plus, Search, ShoppingCart, Trash2, User } from 'lucide-react'
 import Image from 'next/image'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatVND } from '@/lib/format'
 import { Customer, Order, Product, statusOrders, WAREHOUSES, Warehouse } from '@/lib/types'
 import VndInput from './VndInput'
@@ -79,7 +79,7 @@ function NameAutocomplete({ value, onChange, onSelect }: NameAutocompleteProps) 
   return (
     <div ref={containerRef} className="relative">
       <Input
-        id="cust-name" required placeholder="Họ và tên" autoComplete="off"
+        id="cust-name" placeholder="Họ và tên" autoComplete="off"
         value={value}
         onChange={(e) => {
           onChange(e.target.value)
@@ -113,27 +113,62 @@ const warehouseStockKey: Record<Warehouse, 'stockHN' | 'stockQB' | 'stockSG'> = 
   HN: 'stockHN', QB: 'stockQB', SG: 'stockSG',
 }
 
-/* ── Product search ── */
+/* ── Product search (server-side, limit 10 + load-more khi scroll) ── */
+const PRODUCT_PAGE_SIZE = 10
+
 interface ProductSearchProps {
-  value: string
-  products: Product[]
+  selectedProduct?: Product
   warehouse: Warehouse
   onSelect: (product: Product) => void
 }
 
-function ProductSearch({ value, products, warehouse, onSelect }: ProductSearchProps) {
+function ProductSearch({ selectedProduct, warehouse, onSelect }: ProductSearchProps) {
   const stockKey = warehouseStockKey[warehouse]
+  const warehouseStock = (p: Product) => p[stockKey] ?? 0
+
   const [query, setQuery]             = useState('')
   const [open, setOpen]               = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
+  const [results, setResults]         = useState<Product[]>([])
+  const [page, setPage]               = useState(1)
+  const [totalPages, setTotalPages]   = useState(1)
+  const [loading, setLoading]         = useState(false)
   const containerRef                  = useRef<HTMLDivElement>(null)
   const inputRef                      = useRef<HTMLInputElement>(null)
+  const reqIdRef                      = useRef(0)
 
-  const selected      = products.find((p) => p._id === value)
-  const warehouseStock = (p: Product) => p[stockKey] ?? 0
-  const filtered = query.trim()
-    ? products.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()) || p._id.toLowerCase().includes(query.toLowerCase()))
-    : products
+  const debouncedQuery = useDebouncedValue(query, 300)
+
+  const fetchPage = useCallback(async (pageToLoad: number, q: string, append: boolean) => {
+    const reqId = ++reqIdRef.current
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({ page: String(pageToLoad), limit: String(PRODUCT_PAGE_SIZE) })
+      if (q.trim()) params.set('search', q.trim())
+      const res  = await fetch(`/api/products?${params.toString()}`)
+      const data = await res.json()
+      if (reqIdRef.current !== reqId) return // bỏ qua phản hồi cũ
+      const list: Product[] = data.products ?? []
+      setResults((prev) => {
+        if (!append) return list
+        const seen = new Set(prev.map((p) => p._id))
+        return [...prev, ...list.filter((p) => !seen.has(p._id))]
+      })
+      setTotalPages(data.totalPages ?? 1)
+      setPage(pageToLoad)
+    } catch {
+      if (reqIdRef.current === reqId && !append) setResults([])
+    } finally {
+      if (reqIdRef.current === reqId) setLoading(false)
+    }
+  }, [])
+
+  /* Mở dropdown hoặc đổi từ khoá → tải lại từ trang đầu */
+  useEffect(() => {
+    if (!open) return
+    setActiveIndex(-1)
+    fetchPage(1, debouncedQuery, false)
+  }, [open, debouncedQuery, fetchPage])
 
   useEffect(() => {
     if (!open) return
@@ -144,13 +179,19 @@ function ProductSearch({ value, products, warehouse, onSelect }: ProductSearchPr
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
+  const handleScroll = (e: React.UIEvent<HTMLUListElement>) => {
+    if (loading || page >= totalPages) return
+    const el = e.currentTarget
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 48) fetchPage(page + 1, debouncedQuery, true)
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!open || filtered.length === 0) return
-    if (e.key === 'ArrowDown')  { e.preventDefault(); setActiveIndex((i) => Math.min(i + 1, filtered.length - 1)) }
+    if (!open || results.length === 0) return
+    if (e.key === 'ArrowDown')  { e.preventDefault(); setActiveIndex((i) => Math.min(i + 1, results.length - 1)) }
     else if (e.key === 'ArrowUp')   { e.preventDefault(); setActiveIndex((i) => Math.max(i - 1, 0)) }
     else if (e.key === 'Enter') {
       e.preventDefault()
-      const pick = activeIndex >= 0 ? filtered[activeIndex] : filtered[0]
+      const pick = activeIndex >= 0 ? results[activeIndex] : results[0]
       if (pick) { onSelect(pick); setOpen(false); setQuery('') }
     } else if (e.key === 'Escape') { setOpen(false); setQuery('') }
   }
@@ -164,17 +205,17 @@ function ProductSearch({ value, products, warehouse, onSelect }: ProductSearchPr
           type="button" onClick={openSearch}
           className={cn(
             'w-full flex items-center gap-2 h-8 px-3 rounded-lg border bg-background text-sm text-left transition-colors hover:bg-muted',
-            !selected && 'text-muted-foreground',
+            !selectedProduct && 'text-muted-foreground',
           )}
         >
-          {selected ? (
+          {selectedProduct ? (
             <>
               <span className="relative h-5 w-5 shrink-0 overflow-hidden rounded border bg-muted">
-                {selected.image && <Image src={selected.image} alt={selected.name} fill sizes="20px" className="object-cover" />}
+                {selectedProduct.image && <Image src={selectedProduct.image} alt={selectedProduct.name} fill sizes="20px" className="object-cover" />}
               </span>
-              <span className="truncate flex-1 font-medium">{selected.name}</span>
-              <span className={cn('text-xs shrink-0', warehouseStock(selected) === 0 ? 'text-red-500' : 'text-muted-foreground')}>
-                {warehouseStock(selected)} trong kho
+              <span className="truncate flex-1 font-medium">{selectedProduct.name}</span>
+              <span className={cn('text-xs shrink-0', warehouseStock(selectedProduct) === 0 ? 'text-red-500' : 'text-muted-foreground')}>
+                {warehouseStock(selectedProduct)} trong kho
               </span>
             </>
           ) : (
@@ -188,30 +229,42 @@ function ProductSearch({ value, products, warehouse, onSelect }: ProductSearchPr
         />
       )}
       {open && (
-        <ul role="listbox" className="absolute z-50 mt-1 w-full max-h-52 overflow-y-auto rounded-lg border border-border bg-popover shadow-md">
-          {filtered.length === 0 ? (
-            <li className="px-3 py-4 text-center text-sm text-muted-foreground">Không tìm thấy sản phẩm</li>
-          ) : filtered.map((p, i) => (
-            <li
-              key={p._id} role="option" aria-selected={i === activeIndex}
-              onMouseDown={(e) => { e.preventDefault(); onSelect(p); setOpen(false); setQuery('') }}
-              className={cn(
-                'flex items-center gap-2.5 px-3 py-2 cursor-pointer text-sm transition-colors select-none',
-                i === activeIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/60',
-                warehouseStock(p) <= 0 && 'opacity-50 pointer-events-none',
-              )}
-            >
-              <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded border bg-muted">
-                {p.image && <Image src={p.image} alt={p.name} fill sizes="28px" className="object-cover" />}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{p.name}</span>
-                <span className="block text-[11px] text-muted-foreground">
-                  {warehouseStock(p) <= 0 ? 'Hết hàng' : `${warehouseStock(p)} trong kho`} · {formatVND(p.sellingPrice)}
-                </span>
-              </span>
+        <ul
+          role="listbox" onScroll={handleScroll}
+          className="absolute z-50 mt-1 w-full max-h-52 overflow-y-auto rounded-lg border border-border bg-popover shadow-md"
+        >
+          {results.length === 0 ? (
+            <li className="px-3 py-4 text-center text-sm text-muted-foreground">
+              {loading ? 'Đang tải…' : 'Không tìm thấy sản phẩm'}
             </li>
-          ))}
+          ) : (
+            <>
+              {results.map((p, i) => (
+                <li
+                  key={p._id} role="option" aria-selected={i === activeIndex}
+                  onMouseDown={(e) => { e.preventDefault(); onSelect(p); setOpen(false); setQuery('') }}
+                  className={cn(
+                    'flex items-center gap-2.5 px-3 py-2 cursor-pointer text-sm transition-colors select-none',
+                    i === activeIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/60',
+                    warehouseStock(p) <= 0 && 'opacity-50 pointer-events-none',
+                  )}
+                >
+                  <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded border bg-muted">
+                    {p.image && <Image src={p.image} alt={p.name} fill sizes="28px" className="object-cover" />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{p.name}</span>
+                    <span className="block text-[11px] text-muted-foreground">
+                      {warehouseStock(p) <= 0 ? 'Hết hàng' : `${warehouseStock(p)} trong kho`} · {formatVND(p.sellingPrice)}
+                    </span>
+                  </span>
+                </li>
+              ))}
+              {loading && (
+                <li className="px-3 py-2 text-center text-xs text-muted-foreground">Đang tải thêm…</li>
+              )}
+            </>
+          )}
         </ul>
       )}
     </div>
@@ -220,7 +273,7 @@ function ProductSearch({ value, products, warehouse, onSelect }: ProductSearchPr
 
 /* ── Main form ── */
 export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFormProps) {
-  const [products, setProducts]   = useState<Product[]>([])
+  const [productCache, setProductCache] = useState<Record<string, Product>>({})
   const [selectedItems, setSelectedItems] = useState<
     { product: string; quantity: number; sellingPrice: number }[]
   >(initialItems ?? [])
@@ -231,13 +284,25 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
   const [loading, setLoading]           = useState(false)
   const [error, setError]               = useState('')
 
+  /* Tải dữ liệu sản phẩm cho các dòng có sẵn (mở từ trang sản phẩm) */
   useEffect(() => {
+    const ids = (initialItems ?? []).map((it) => it.product).filter(Boolean)
+    if (ids.length === 0) return
     let ignore = false
-    fetch('/api/products?limit=500')
-      .then((r) => r.json())
-      .then((data) => { if (!ignore) setProducts(data.products ?? []) })
-      .catch(() => { if (!ignore) setError('Không thể tải sản phẩm') })
+    Promise.all(
+      ids.map((id) => fetch(`/api/products/${id}`).then((r) => (r.ok ? r.json() : null)).catch(() => null)),
+    ).then((list) => {
+      if (ignore) return
+      const fetched = list.filter(Boolean) as Product[]
+      if (fetched.length === 0) return
+      setProductCache((prev) => {
+        const next = { ...prev }
+        for (const p of fetched) next[p._id] = p
+        return next
+      })
+    })
     return () => { ignore = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const debouncedPhone = useDebouncedValue(customerInfo.phone, 400)
@@ -260,8 +325,10 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
   const removeItem = (i: number) => setSelectedItems((prev) => prev.filter((_, idx) => idx !== i))
   const updateItem = (i: number, field: 'quantity' | 'sellingPrice', value: number) =>
     setSelectedItems((prev) => { const next = [...prev]; next[i] = { ...next[i], [field]: value }; return next })
-  const handleProductSelect = (i: number, product: Product) =>
+  const handleProductSelect = (i: number, product: Product) => {
+    setProductCache((prev) => ({ ...prev, [product._id]: product }))
     setSelectedItems((prev) => { const next = [...prev]; next[i] = { ...next[i], product: product._id, sellingPrice: product.sellingPrice }; return next })
+  }
 
   /* Validate rồi mở confirm popup */
   const handleFormSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
@@ -338,7 +405,9 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
       {/* ── Thông tin khách hàng (compact) ── */}
       <div className="space-y-2 p-3 bg-muted/40 rounded-lg border">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Khách hàng</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Khách hàng <span className="font-normal normal-case text-muted-foreground/70">(tuỳ chọn)</span>
+          </p>
           {autoFilled && (
             <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" /> Tự động điền
@@ -359,7 +428,7 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
           <div className="space-y-1">
             <Label htmlFor="cust-phone" className="text-xs flex items-center gap-1"><Phone className="w-3 h-3" /> Số điện thoại</Label>
             <Input
-              id="cust-phone" type="tel" required placeholder="Số điện thoại"
+              id="cust-phone" type="tel" placeholder="Số điện thoại"
               value={customerInfo.phone}
               onChange={(e) => { setCustomerInfo((p) => ({ ...p, phone: e.target.value })); setAutoFilled(false) }}
             />
@@ -383,15 +452,14 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
       {/* ── Danh sách sản phẩm ── */}
       <div className="space-y-2">
         {selectedItems.map((item, index) => {
-          const selected = products.find((p) => p._id === item.product)
+          const selected = productCache[item.product]
           return (
             <div key={index} className="p-3 bg-muted/30 rounded-lg border space-y-2">
               {/* Row 1: tên sản phẩm + nút xoá */}
               <div className="flex items-center gap-2">
                 <div className="flex-1 min-w-0">
                   <ProductSearch
-                    value={item.product}
-                    products={products}
+                    selectedProduct={productCache[item.product]}
                     warehouse={warehouse}
                     onSelect={(p) => handleProductSelect(index, p)}
                   />

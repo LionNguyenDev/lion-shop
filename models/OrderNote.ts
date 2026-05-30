@@ -33,9 +33,7 @@ const OrderNoteSchema: Schema = new Schema(
 OrderNoteSchema.index({ createdAt: -1 })
 OrderNoteSchema.index({ orderCode: 1 })
 
-if (mongoose.models.OrderNote) {
-  delete (mongoose.models as Record<string, unknown>)['OrderNote']
-}
-const OrderNote: Model<IOrderNote> = mongoose.model<IOrderNote>('OrderNote', OrderNoteSchema)
+const OrderNote: Model<IOrderNote> =
+  (mongoose.models.OrderNote as Model<IOrderNote>) ?? mongoose.model<IOrderNote>('OrderNote', OrderNoteSchema)
 
 export default OrderNote

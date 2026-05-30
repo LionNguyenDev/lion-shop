@@ -73,10 +73,13 @@ export async function createOrder(data: {
     await order.save({ session })
     await session.commitTransaction()
 
-    try {
-      await upsertCustomer({ name: data.name, phone: data.phone, address: data.address ?? '' })
-    } catch {
-      // best-effort
+    // Chỉ lưu vào danh bạ khách khi có đủ tên & SĐT (customer là tuỳ chọn khi tạo đơn)
+    if (data.name?.trim() && data.phone?.trim()) {
+      try {
+        await upsertCustomer({ name: data.name, phone: data.phone, address: data.address ?? '' })
+      } catch {
+        // best-effort
+      }
     }
 
     return order

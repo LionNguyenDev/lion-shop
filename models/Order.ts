@@ -34,9 +34,9 @@ const OrderSchema: Schema = new Schema(
     items: [OrderItemSchema],
     totalAmount: { type: Number, required: true, min: 0 },
     profit: { type: Number, required: true, default: 0 },
-    name: { type: String, required: true }, // name of guest
-    address: { type: String, default: '' }, // address of guest (optional)
-    phone: { type: String, required: true }, // phone number of guest
+    name: { type: String, default: '' }, // tên khách (tuỳ chọn)
+    address: { type: String, default: '' }, // địa chỉ khách (tuỳ chọn)
+    phone: { type: String, default: '' }, // SĐT khách (tuỳ chọn)
     warehouse: {
       type: String,
       enum: Object.keys(WAREHOUSES),
@@ -54,11 +54,7 @@ const OrderSchema: Schema = new Schema(
 OrderSchema.index({ createdAt: -1 })
 OrderSchema.index({ status: 1, createdAt: -1 })
 
-// Always delete the cached model so schema changes (e.g. new enum values)
-// take effect immediately in dev without requiring a server restart.
-if (mongoose.models.Order) {
-  delete (mongoose.models as Record<string, unknown>)['Order']
-}
-const Order: Model<IOrder> = mongoose.model<IOrder>('Order', OrderSchema)
+const Order: Model<IOrder> =
+  (mongoose.models.Order as Model<IOrder>) ?? mongoose.model<IOrder>('Order', OrderSchema)
 
 export default Order

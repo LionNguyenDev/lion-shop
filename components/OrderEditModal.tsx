@@ -156,23 +156,25 @@ function EditForm({
 
       {/* Thông tin khách hàng */}
       <div className="space-y-3 p-4 bg-muted/40 rounded-lg border">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Khách hàng</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          Khách hàng <span className="font-normal normal-case text-muted-foreground/70">(tuỳ chọn)</span>
+        </p>
 
         <div className="space-y-1.5">
           <Label htmlFor="edit-name"><User className="w-3.5 h-3.5" /> Họ và tên</Label>
-          <Input id="edit-name" required placeholder="Họ và tên"
+          <Input id="edit-name" placeholder="Họ và tên"
             value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="edit-phone"><Phone className="w-3.5 h-3.5" /> Số điện thoại</Label>
-          <Input id="edit-phone" type="tel" required placeholder="Số điện thoại"
+          <Input id="edit-phone" type="tel" placeholder="Số điện thoại"
             value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="edit-addr"><MapPin className="w-3.5 h-3.5" /> Địa chỉ</Label>
-          <Textarea id="edit-addr" required placeholder="Địa chỉ giao hàng"
+          <Textarea id="edit-addr" placeholder="Địa chỉ giao hàng"
             value={form.address} rows={2}
             onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
         </div>
