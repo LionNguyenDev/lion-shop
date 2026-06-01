@@ -25,7 +25,13 @@ export async function getProducts({ search, brand, page = 1, limit = 10 }: Produ
   await dbConnect()
 
   const filter: Record<string, unknown> = {}
-  if (search) filter.name  = { $regex: search, $options: 'i' }
+  // Một thanh tìm kiếm: khớp theo tên HOẶC nhãn hàng
+  if (search) {
+    filter.$or = [
+      { name:  { $regex: search, $options: 'i' } },
+      { brand: { $regex: search, $options: 'i' } },
+    ]
+  }
   if (brand)  filter.brand = { $regex: brand,  $options: 'i' }
 
   const skip = (page - 1) * limit

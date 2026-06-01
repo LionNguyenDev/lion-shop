@@ -24,12 +24,15 @@ const ProductSchema: Schema = new Schema(
     stockHN:       { type: Number, required: true, min: 0, default: 0 },
     stockQB:       { type: Number, required: true, min: 0, default: 0 },
     stockSG:       { type: Number, required: true, min: 0, default: 0 },
-    image:         { type: String, required: true },
+    image:         { type: String, default: '' },
   },
   { timestamps: true },
 )
 
-const Product: Model<IProduct> =
-  (mongoose.models.Product as Model<IProduct>) ?? mongoose.model<IProduct>('Product', ProductSchema)
+// Delete cached model so schema changes take effect without restarting the server
+if (mongoose.models.Product) {
+  mongoose.deleteModel('Product')
+}
+const Product: Model<IProduct> = mongoose.model<IProduct>('Product', ProductSchema)
 
 export default Product

@@ -156,19 +156,13 @@ export default function ProductList({
                 {/* Ảnh */}
                 <TableCell className="pl-4 py-3">
                   <div className="relative h-32 w-32 shrink-0 overflow-hidden rounded-xl border bg-muted">
-                    {product.image ? (
-                      <Image
-                        src={product.image}
-                        alt={product.name}
-                        fill
-                        sizes="128px"
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center">
-                        <Package className="h-8 w-8 text-muted-foreground/40" />
-                      </div>
-                    )}
+                    <Image
+                      src={product.image || '/placeholder-product.svg'}
+                      alt={product.name}
+                      fill
+                      sizes="128px"
+                      className="object-cover"
+                    />
                   </div>
                 </TableCell>
 

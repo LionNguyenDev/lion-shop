@@ -246,7 +246,6 @@ function ProductSearch({ selectedProduct, warehouse, onSelect }: ProductSearchPr
                   className={cn(
                     'flex items-center gap-2.5 px-3 py-2 cursor-pointer text-sm transition-colors select-none',
                     i === activeIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/60',
-                    warehouseStock(p) <= 0 && 'opacity-50 pointer-events-none',
                   )}
                 >
                   <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded border bg-muted">
@@ -330,6 +329,24 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
     setProductCache((prev) => ({ ...prev, [product._id]: product }))
     setSelectedItems((prev) => { const next = [...prev]; next[i] = { ...next[i], product: product._id, sellingPrice: product.sellingPrice }; return next })
   }
+
+  const stockDebounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const updateProductStock = useCallback((productId: string, field: 'stockHN' | 'stockQB' | 'stockSG', value: number) => {
+    setProductCache((prev) => {
+      const p = prev[productId]
+      if (!p) return prev
+      return { ...prev, [productId]: { ...p, [field]: value } }
+    })
+    const key = `${productId}:${field}`
+    clearTimeout(stockDebounceRef.current[key])
+    stockDebounceRef.current[key] = setTimeout(() => {
+      fetch(`/api/products/${productId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value }),
+      }).catch(() => {})
+    }, 600)
+  }, [])
 
   /* Validate rồi mở confirm popup */
   const handleFormSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
@@ -452,23 +469,45 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
                 </Button>
               </div>
 
-              {/* Row 2: chọn kho */}
-              <div className="flex items-center gap-1.5">
+              {/* Row 2: chọn kho + chỉnh tồn kho inline */}
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-[11px] text-muted-foreground shrink-0">Kho:</p>
-                {(Object.entries(WAREHOUSES) as [Warehouse, string][]).map(([key, label]) => (
-                  <button
-                    key={key} type="button"
-                    onClick={() => updateItemWarehouse(index, key)}
-                    className={cn(
-                      'px-2 py-0.5 rounded border text-xs font-medium transition-colors',
-                      item.warehouse === key
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-background text-muted-foreground border-border hover:bg-muted',
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
+                {(Object.entries(WAREHOUSES) as [Warehouse, string][]).map(([key, label]) => {
+                  const stockField = warehouseStockKey[key]
+                  const stock = selected ? (selected[stockField] ?? 0) : null
+                  return (
+                    <div key={key} className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => updateItemWarehouse(index, key)}
+                        className={cn(
+                          'px-2 py-0.5 rounded border text-xs font-medium transition-colors',
+                          item.warehouse === key
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background text-muted-foreground border-border hover:bg-muted',
+                        )}
+                      >
+                        {label}
+                      </button>
+                      {stock !== null && (
+                        <input
+                          type="number"
+                          min="0"
+                          value={stock}
+                          onChange={(e) => updateProductStock(selected!._id, stockField, parseInt(e.target.value) || 0)}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+                          className={cn(
+                            'w-12 h-5 rounded border text-center text-xs tabular-nums bg-background focus:outline-none focus:ring-1 focus:ring-primary',
+                            stock === 0
+                              ? 'border-red-400 text-red-500 dark:border-red-600'
+                              : 'border-border text-foreground',
+                          )}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
               </div>
 
               {/* Row 3: giá vốn (read-only) + giá bán + số lượng */}

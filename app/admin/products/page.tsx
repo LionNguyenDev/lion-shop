@@ -81,31 +81,27 @@ export default function ProductsPage() {
     setSelectedProductsCache(new Map())
   }
 
-  // Input states (immediate UI)
-  const [search, setSearch]           = useState('')
-  const [brandFilter, setBrandFilter] = useState('')
-  const [page, setPage]               = useState(1)
+  // Input state (immediate UI) — một thanh tìm theo tên hoặc nhãn hàng
+  const [search, setSearch] = useState('')
+  const [page, setPage]     = useState(1)
 
-  // Debounced values used in API calls
+  // Debounced value used in API calls
   const [apiSearch, setApiSearch] = useState('')
-  const [apiBrand, setApiBrand]   = useState('')
 
-  // Debounce text inputs 350ms, reset page on filter change
+  // Debounce text input 350ms, reset page on search change
   useEffect(() => {
     const t = setTimeout(() => {
       setApiSearch(search)
-      setApiBrand(brandFilter)
       setPage(1)
     }, 350)
     return () => clearTimeout(t)
-  }, [search, brandFilter])
+  }, [search])
 
   const fetchProducts = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
       const params = new URLSearchParams()
       if (apiSearch) params.set('search', apiSearch)
-      if (apiBrand)  params.set('brand',  apiBrand)
       params.set('page',  page.toString())
       params.set('limit', PAGE_SIZE.toString())
 
@@ -122,7 +118,7 @@ export default function ProductsPage() {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [apiSearch, apiBrand, page])
+  }, [apiSearch, page])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
 
@@ -144,10 +140,29 @@ export default function ProductsPage() {
     try {
       const res = await fetch(`/api/products/${deleteTarget}`, { method: 'DELETE' })
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Xóa thất bại') }
-      setProducts((prev) => prev.filter((p) => p._id !== deleteTarget))
-      setTotal((prev) => prev - 1)
+
+      // Gỡ khỏi vùng chọn nếu sản phẩm bị xóa đang được chọn
+      if (selectedIds.has(deleteTarget)) {
+        const next = new Set(selectedIds)
+        next.delete(deleteTarget)
+        handleSelectionChange(next)
+      }
+
+      const deletedId = deleteTarget
       setDeleteTarget(null)
       toast.success('Đã xóa sản phẩm', { id: tid })
+
+      // Nếu trang hiện tại rỗng đi sau khi xóa thì lùi về trang trước,
+      // ngược lại tải lại trang hiện tại để kéo bù 1 sản phẩm từ trang sau.
+      const newTotalPages = Math.max(1, Math.ceil((total - 1) / PAGE_SIZE))
+      const isLastOnPage   = products.length === 1 && products[0]?._id === deletedId
+      if (isLastOnPage && page > newTotalPages) {
+        setPage(newTotalPages) // effect sẽ tự tải lại
+      } else {
+        // Tải lại "im lặng": không hiện skeleton nên vị trí màn hình không đổi,
+        // danh sách vẫn đủ PAGE_SIZE nhờ bù từ trang kế tiếp.
+        await fetchProducts(true)
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Xóa thất bại', { id: tid })
     } finally {
@@ -195,18 +210,9 @@ export default function ProductsPage() {
         <div className="relative min-w-56 flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Tìm kiếm theo tên…"
+            placeholder="Tìm theo tên hoặc nhãn hàng…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <div className="relative min-w-40">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Lọc theo nhãn hàng…"
-            value={brandFilter}
-            onChange={(e) => setBrandFilter(e.target.value)}
             className="pl-9"
             list="brand-list"
           />
@@ -214,14 +220,14 @@ export default function ProductsPage() {
             {allBrands.map((b) => <option key={b} value={b} />)}
           </datalist>
         </div>
-        {(search || brandFilter) && (
-          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setBrandFilter('') }}>
+        {search && (
+          <Button variant="ghost" size="sm" onClick={() => setSearch('')}>
             <XCircle className="h-4 w-4" /> Xóa bộ lọc
           </Button>
         )}
       </div>
 
-      {!loading && (
+{!loading && (
         <p className="mb-3 text-xs text-muted-foreground">
           Hiển thị {products.length} trong {total} sản phẩm
           {total !== apiStats.total && ` (đã lọc từ ${apiStats.total})`}

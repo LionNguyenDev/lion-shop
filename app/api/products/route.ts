@@ -21,13 +21,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    if (!body.name || !body.brand || !body.type || body.originalPrice === undefined || body.sellingPrice === undefined || !body.image) {
+    if (!body.name || !body.brand || !body.type || body.originalPrice === undefined || body.sellingPrice === undefined) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
     const product = await createProduct(body)
     return NextResponse.json(product, { status: 201 })
   } catch (error) {
     console.error('Error creating product:', error)
-    return NextResponse.json({ error: 'Failed to create product' }, { status: 500 })
+    const msg = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

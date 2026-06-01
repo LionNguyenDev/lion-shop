@@ -219,6 +219,17 @@ export default function ImageUploadButton({
         onChange={handleInputChange}
       />
 
+      {/* Placeholder preview */}
+      <div className="relative h-32 w-32 overflow-hidden rounded-xl border bg-muted">
+        <Image
+          src="/placeholder-product.svg"
+          alt="placeholder"
+          fill
+          sizes="128px"
+          className="object-cover opacity-60"
+        />
+      </div>
+
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
