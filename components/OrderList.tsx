@@ -198,7 +198,6 @@ export default function OrderList({
                   <div className="flex items-center justify-center gap-1">
                     <Button
                       variant="outline" size="sm"
-                      disabled={isPaid}
                       onClick={() => onEdit(order)}
                       className="h-7 px-2 text-xs"
                     >
