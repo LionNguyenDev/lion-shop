@@ -21,9 +21,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 
 /* ── Types ── */
+interface OrderStats {
+  total: number
+  unpaid: number
+  paid: number
+  revenue: number
+}
+
 interface DashboardData {
   products: Product[]
-  orders: Order[]
+  orders: Order[]          // recent orders only (first page)
+  orderStats: OrderStats
 }
 
 /* ── Stat card ── */
@@ -81,22 +89,23 @@ const STATUS_COLORS: Record<string, string> = {
   [statusOrders.PAID]:   'bg-emerald-500',
 }
 
-function StatusDistribution({ orders }: { orders: Order[] }) {
+function StatusDistribution({ stats }: { stats: OrderStats }) {
   const counts = useMemo(() => {
-    const map: Record<string, number> = {}
-    for (const o of orders) map[o.status] = (map[o.status] ?? 0) + 1
-    return Object.entries(map)
+    return ([
+      [statusOrders.PAID,   stats.paid],
+      [statusOrders.UNPAID, stats.unpaid],
+    ] as [string, number][])
+      .filter(([, c]) => c > 0)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 6)
-  }, [orders])
+  }, [stats])
 
-  const total = orders.length || 1
+  const total = stats.total || 1
 
   return (
     <div className="space-y-3">
       {counts.map(([status, count]) => (
         <div key={status} className="flex items-center gap-3">
-          <div className="w-24 shrink-0 text-xs text-muted-foreground truncate">{status}</div>
+          <div className="w-24 shrink-0 text-xs text-muted-foreground truncate">{statusOrdersVN[status] ?? status}</div>
           <div className="flex-1 overflow-hidden rounded-full bg-muted h-2">
             <div
               className={cn('h-full rounded-full transition-all duration-500', STATUS_COLORS[status] ?? 'bg-slate-500')}
@@ -225,24 +234,27 @@ function LowStockList({ products, loading }: { products: Product[]; loading: boo
 
 /* ── Page ── */
 export default function DashboardPage() {
-  const [data, setData] = useState<DashboardData>({ products: [], orders: [] })
+  const [data, setData] = useState<DashboardData>({
+    products: [],
+    orders: [],
+    orderStats: { total: 0, unpaid: 0, paid: 0, revenue: 0 },
+  })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([fetch('/api/products?limit=500'), fetch('/api/orders')])
+    Promise.all([fetch('/api/products?limit=500'), fetch('/api/orders?limit=6')])
       .then(([pRes, oRes]) => Promise.all([pRes.json(), oRes.json()]))
-      .then(([productsRes, orders]) => setData({ products: productsRes.products ?? [], orders }))
+      .then(([productsRes, ordersRes]) => setData({
+        products: productsRes.products ?? [],
+        orders: ordersRes.orders ?? [],
+        orderStats: ordersRes.stats ?? { total: 0, unpaid: 0, paid: 0, revenue: 0 },
+      }))
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [])
 
-  const revenue = useMemo(
-    () => data.orders
-      .filter((o) => o.status === statusOrders.PAID)
-      .reduce((s, o) => s + o.totalAmount, 0),
-    [data.orders],
-  )
-  const unpaidCount   = data.orders.filter((o) => o.status === statusOrders.UNPAID).length
+  const revenue       = data.orderStats.revenue
+  const unpaidCount   = data.orderStats.unpaid
   const lowStockCount = data.products.filter((p) => p.stock < 20).length
   const inventoryValue = useMemo(
     () => data.products.reduce((s, p) => s + p.stock * p.originalPrice, 0),
@@ -260,7 +272,7 @@ export default function DashboardPage() {
     },
     {
       label: 'Tổng đơn hàng',
-      value: loading ? '—' : data.orders.length.toLocaleString('vi-VN'),
+      value: loading ? '—' : data.orderStats.total.toLocaleString('vi-VN'),
       sub: `${unpaidCount} chưa thanh toán`,
       icon: ShoppingCart,
       href: '/admin/orders',
@@ -323,10 +335,10 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-5 w-full" />)}
               </div>
-            ) : data.orders.length === 0 ? (
+            ) : data.orderStats.total === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">Chưa có đơn hàng</p>
             ) : (
-              <StatusDistribution orders={data.orders} />
+              <StatusDistribution stats={data.orderStats} />
             )}
           </CardContent>
         </Card>

@@ -11,9 +11,104 @@ const warehouseField: Record<Warehouse, 'stockHN' | 'stockQB' | 'stockSG'> = {
   SG: 'stockSG',
 }
 
-export async function getAllOrders() {
+const TZ_OFFSET_MS = 7 * 60 * 60 * 1000 // Asia/Ho_Chi_Minh
+
+/** UTC Date for VN midnight of the given YYYY-MM-DD (dayOffset shifts whole days). */
+function vnDayBoundary(iso: string, dayOffset = 0): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  if (!m) return null
+  const [, y, mo, d] = m
+  return new Date(Date.UTC(+y, +mo - 1, +d + dayOffset) - TZ_OFFSET_MS)
+}
+
+export interface OrderQuery {
+  search?: string
+  status?: string
+  from?: string   // YYYY-MM-DD (inclusive)
+  to?: string     // YYYY-MM-DD (inclusive)
+  page?: number
+  limit?: number
+}
+
+export interface OrdersResult {
+  orders: unknown[]
+  total: number
+  page: number
+  totalPages: number
+  stats: { total: number; unpaid: number; paid: number; revenue: number }
+}
+
+export async function getOrders({
+  search,
+  status,
+  from,
+  to,
+  page = 1,
+  limit = 10,
+}: OrderQuery = {}): Promise<OrdersResult> {
   await dbConnect()
-  return Order.find({}).sort({ createdAt: -1 })
+
+  const filter: Record<string, unknown> = {}
+
+  if (search) {
+    const rx = { $regex: search, $options: 'i' }
+    filter.$or = [
+      { name: rx },
+      { phone: rx },
+      { 'items.name': rx },
+      // match by order code (hex of _id)
+      { $expr: { $regexMatch: { input: { $toString: '$_id' }, regex: search, options: 'i' } } },
+    ]
+  }
+
+  if (status) filter.status = status
+
+  const start = from ? vnDayBoundary(from, 0) : null
+  const end   = to   ? vnDayBoundary(to, 1)   : null // exclusive end = next day's midnight
+  if (start || end) {
+    filter.createdAt = {
+      ...(start ? { $gte: start } : {}),
+      ...(end   ? { $lt:  end }   : {}),
+    }
+  }
+
+  const skip = (page - 1) * limit
+
+  const [orders, total, statsResult] = await Promise.all([
+    Order.find(filter).sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit).lean(),
+    Order.countDocuments(filter),
+    Order.aggregate<{ _id: string; count: number; revenue: number }>([
+      {
+        $group: {
+          _id: '$status',
+          count:   { $sum: 1 },
+          revenue: { $sum: '$totalAmount' },
+        },
+      },
+    ]),
+  ])
+
+  let unpaid = 0
+  let paid = 0
+  let revenue = 0
+  let allTotal = 0
+  for (const row of statsResult) {
+    allTotal += row.count
+    if (row._id === statusOrders.PAID) {
+      paid = row.count
+      revenue = row.revenue
+    } else if (row._id === statusOrders.UNPAID) {
+      unpaid = row.count
+    }
+  }
+
+  return {
+    orders,
+    total,
+    page,
+    totalPages: Math.max(1, Math.ceil(total / limit)),
+    stats: { total: allTotal, unpaid, paid, revenue },
+  }
 }
 
 export async function createOrder(data: {

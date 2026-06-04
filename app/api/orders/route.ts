@@ -1,11 +1,19 @@
-import { NextResponse } from 'next/server'
-import { createOrder, getAllOrders } from '@/lib/services/orderService'
+import { NextRequest, NextResponse } from 'next/server'
+import { createOrder, getOrders } from '@/lib/services/orderService'
 import { WAREHOUSES } from '@/lib/types'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const orders = await getAllOrders()
-    return NextResponse.json(orders)
+    const { searchParams } = request.nextUrl
+    const search = searchParams.get('search') || undefined
+    const status = searchParams.get('status') || undefined
+    const from   = searchParams.get('from')   || undefined
+    const to     = searchParams.get('to')     || undefined
+    const page   = Math.max(1, parseInt(searchParams.get('page')  || '1',  10))
+    const limit  = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '10', 10)))
+
+    const result = await getOrders({ search, status, from, to, page, limit })
+    return NextResponse.json(result)
   } catch {
     return NextResponse.json(
       { error: 'Failed to fetch orders' },

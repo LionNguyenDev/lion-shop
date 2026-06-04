@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pagination } from '@/components/ui/pagination'
 import { toast } from 'sonner'
 import { CalendarDays, CheckCircle, ListOrdered, Plus, Search, SlidersHorizontal, Trash2, XCircle } from 'lucide-react'
@@ -57,10 +57,14 @@ const statusBadgeClass: Record<string, string> = {
   [statusOrders.PAID]:   'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
 }
 
+interface OrderStats { total: number; unpaid: number; paid: number; revenue: number }
+
 export default function OrdersPage() {
   const [orders, setOrders]               = useState<Order[]>([])
+  const [serverStats, setServerStats]     = useState<OrderStats>({ total: 0, unpaid: 0, paid: 0, revenue: 0 })
+  const [total, setTotal]                 = useState(0)
+  const [totalPages, setTotalPages]       = useState(1)
   const [loading, setLoading]             = useState(true)
-  const [refreshKey, setRefreshKey]       = useState(0)
   const [createModal, setCreateModal]     = useState<CreateModal>('closed')
   const [createdOrder, setCreatedOrder]   = useState<Order | null>(null)
   const [editingOrder, setEditingOrder]   = useState<Order | null>(null)
@@ -70,56 +74,63 @@ export default function OrdersPage() {
   const [bulkDeleteOpen, setBulkDeleteOpen]   = useState(false)
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false)
   const [search, setSearch]                   = useState('')
+  const [apiSearch, setApiSearch]             = useState('')
   const [statusFilter, setStatusFilter]   = useState('')
   const [dateFrom, setDateFrom]           = useState('')
   const [dateTo, setDateTo]               = useState('')
   const [page, setPage]                   = useState(1)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    fetch('/api/orders')
-      .then((r) => r.json())
-      .then((data) => { if (!cancelled) setOrders(data) })
-      .catch(() => { if (!cancelled) toast.error('Không thể tải đơn hàng') })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [refreshKey])
+  const clearSelection = () => setSelectedIds(new Set())
 
-  const unpaidCount = useMemo(
-    () => orders.filter((o) => o.status === statusOrders.UNPAID).length,
-    [orders],
-  )
+  // Debounce search input → reset to page 1 on change
+  useEffect(() => {
+    const t = setTimeout(() => { setApiSearch(search); setPage(1) }, 350)
+    return () => clearTimeout(t)
+  }, [search])
+
+  const fetchOrders = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (apiSearch)    params.set('search', apiSearch)
+      if (statusFilter) params.set('status', statusFilter)
+      if (dateFrom)     params.set('from',   dateFrom)
+      if (dateTo)       params.set('to',     dateTo)
+      params.set('page',  page.toString())
+      params.set('limit', PAGE_SIZE.toString())
+
+      const res  = await fetch(`/api/orders?${params}`)
+      const data = await res.json()
+
+      setOrders(data.orders ?? [])
+      setTotal(data.total ?? 0)
+      setTotalPages(data.totalPages ?? 1)
+      if (data.stats) setServerStats(data.stats)
+    } catch {
+      toast.error('Không thể tải đơn hàng')
+    } finally {
+      if (!silent) setLoading(false)
+    }
+  }, [apiSearch, statusFilter, dateFrom, dateTo, page])
+
+  useEffect(() => { fetchOrders() }, [fetchOrders])
+
+  const unpaidCount = serverStats.unpaid
 
   const stats = useMemo(() => [
-    { label: 'Tổng cộng',       value: orders.length, color: 'text-foreground', bar: 'bg-primary' },
-    { label: 'Chưa thanh toán', value: orders.filter((o) => o.status === statusOrders.UNPAID).length, color: 'text-red-600 dark:text-red-400', bar: 'bg-red-500 dark:bg-red-400' },
-    { label: 'Đã thanh toán',   value: orders.filter((o) => o.status === statusOrders.PAID).length,   color: 'text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500 dark:bg-emerald-400' },
-  ], [orders])
+    { label: 'Tổng cộng',       value: serverStats.total,  color: 'text-foreground', bar: 'bg-primary' },
+    { label: 'Chưa thanh toán', value: serverStats.unpaid, color: 'text-red-600 dark:text-red-400',         bar: 'bg-red-500 dark:bg-red-400' },
+    { label: 'Đã thanh toán',   value: serverStats.paid,   color: 'text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500 dark:bg-emerald-400' },
+  ], [serverStats])
 
-  const filteredOrders = useMemo(() => {
-    const q    = search.toLowerCase()
-    const from = dateFrom ? new Date(dateFrom) : null
-    const to   = dateTo   ? new Date(`${dateTo}T23:59:59`) : null
-    return orders.filter((o) => {
-      const matchSearch = !q || o.name?.toLowerCase().includes(q) || o._id.toLowerCase().includes(q) || o.phone?.includes(q) || o.items.some((it) => it.name.toLowerCase().includes(q))
-      const matchStatus = !statusFilter || o.status === statusFilter
-      const created     = new Date(o.createdAt)
-      const matchFrom   = !from || created >= from
-      const matchTo     = !to   || created <= to
-      return matchSearch && matchStatus && matchFrom && matchTo
-    })
-  }, [orders, search, statusFilter, dateFrom, dateTo])
-
-  const totalPages  = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE))
-  const pagedOrders = filteredOrders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-
-  const handleCreateSuccess = (order: Order) => { setCreatedOrder(order); setCreateModal('success'); setRefreshKey((k) => k + 1) }
+  const handleCreateSuccess = (order: Order) => { setCreatedOrder(order); setCreateModal('success'); fetchOrders(true) }
 
   const handleEditSaved = (updated: Order) => {
     setOrders((prev) => prev.map((o) => (o._id === updated._id ? updated : o)))
     setEditingOrder(null)
     toast.success('Đã cập nhật đơn hàng')
+    fetchOrders(true)
   }
 
   const handleComplete = async (order: Order) => {
@@ -133,6 +144,7 @@ export default function OrdersPage() {
     if (res.ok) {
       setOrders((prev) => prev.map((o) => (o._id === data._id ? data : o)))
       toast.success('Đơn hàng đã hoàn thành', { id: tid })
+      fetchOrders(true)
     } else {
       toast.error(data.error ?? 'Cập nhật thất bại', { id: tid })
     }
@@ -148,9 +160,13 @@ export default function OrdersPage() {
         const data = await res.json()
         throw new Error(data.error || 'Xóa đơn hàng thất bại')
       }
-      setOrders((prev) => prev.filter((o) => o._id !== deleteTarget._id))
+      setSelectedIds((prev) => { const n = new Set(prev); n.delete(deleteTarget._id); return n })
       setDeleteTarget(null)
       toast.success('Đã xóa đơn hàng', { id: tid })
+
+      const newTotalPages = Math.max(1, Math.ceil((total - 1) / PAGE_SIZE))
+      if (page > newTotalPages) setPage(newTotalPages) // effect refetches
+      else await fetchOrders(true)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Xóa thất bại', { id: tid })
     } finally {
@@ -160,15 +176,19 @@ export default function OrdersPage() {
 
   const confirmBulkDelete = async () => {
     setBulkDeleteLoading(true)
-    const tid = toast.loading(`Đang xóa ${selectedIds.size} đơn hàng…`)
+    const count = selectedIds.size
+    const tid = toast.loading(`Đang xóa ${count} đơn hàng…`)
     try {
       await Promise.all(
         [...selectedIds].map((id) => fetch(`/api/orders/${id}`, { method: 'DELETE' }))
       )
-      setOrders((prev) => prev.filter((o) => !selectedIds.has(o._id)))
       setSelectedIds(new Set())
       setBulkDeleteOpen(false)
-      toast.success(`Đã xóa ${selectedIds.size} đơn hàng`, { id: tid })
+      toast.success(`Đã xóa ${count} đơn hàng`, { id: tid })
+
+      const newTotalPages = Math.max(1, Math.ceil((total - count) / PAGE_SIZE))
+      if (page > newTotalPages) setPage(newTotalPages) // effect refetches
+      else await fetchOrders(true)
     } catch {
       toast.error('Xóa thất bại', { id: tid })
     } finally {
@@ -200,7 +220,7 @@ export default function OrdersPage() {
 
       {/* ── Stats ── */}
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {loading
+        {loading && serverStats.total === 0
           ? [...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)
           : stats.map((s) => (
               <Card key={s.label} size="sm">
@@ -226,7 +246,7 @@ export default function OrdersPage() {
             <Input
               placeholder="Tìm theo tên KH, SĐT, mã đơn, tên sản phẩm…"
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
             />
           </div>
@@ -282,7 +302,7 @@ export default function OrdersPage() {
           })()}
 
           {(search || statusFilter || dateFrom || dateTo) && (
-            <Button variant="ghost" size="sm" className="shrink-0" onClick={() => { setSearch(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); setPage(1) }}>
+            <Button variant="ghost" size="sm" className="shrink-0" onClick={() => { setSearch(''); setApiSearch(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); setPage(1) }}>
               <XCircle className="h-4 w-4" /> Xóa bộ lọc
             </Button>
           )}
@@ -292,8 +312,8 @@ export default function OrdersPage() {
       {!loading && (
         <div className="mb-3 flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
-            Hiển thị {pagedOrders.length} trong {filteredOrders.length} đơn hàng
-            {filteredOrders.length !== orders.length && ` (đã lọc từ ${orders.length})`}
+            Hiển thị {orders.length} trong {total} đơn hàng
+            {total !== serverStats.total && ` (đã lọc từ ${serverStats.total})`}
           </p>
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-2">
@@ -314,7 +334,7 @@ export default function OrdersPage() {
 
       {/* ── Table ── */}
       <OrderList
-        orders={pagedOrders}
+        orders={orders}
         loading={loading}
         onEdit={setEditingOrder}
         onDelete={setDeleteTarget}
@@ -324,7 +344,12 @@ export default function OrdersPage() {
         onSelectionChange={setSelectedIds}
       />
 
-      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} className="mt-4" />
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={(p) => { setPage(p); clearSelection() }}
+        className="mt-4"
+      />
 
       {/* ── Create / Success dialog ── */}
       <Dialog
