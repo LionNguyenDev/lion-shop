@@ -1,11 +1,12 @@
 'use client'
 
 import { MapPin, Phone, Plus, Trash2, User } from 'lucide-react'
-import Image from 'next/image'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { formatProfit, formatVND } from '@/lib/format'
-import { Order, Product, statusOrders } from '@/lib/types'
+import { Order, Product, statusOrders, WAREHOUSES, Warehouse } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { ProductSearch, warehouseStockKey } from './ProductSearch'
+import VndInput from './VndInput'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,13 +17,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 
 interface OrderEditModalProps {
   order: Order | null
@@ -34,6 +28,8 @@ interface EditableItem {
   product: string
   quantity: number
   sellingPrice: number
+  originalPrice: number
+  warehouse: Warehouse
 }
 
 const STATUS_OPTIONS = [statusOrders.UNPAID, statusOrders.PAID] as const
@@ -64,46 +60,81 @@ function EditForm({
   })
   const [items, setItems] = useState<EditableItem[]>(() =>
     order.items.map((it) => ({
-      product:      String(it.product),
-      quantity:     it.quantity,
-      sellingPrice: it.price,
+      product:       String(it.product),
+      quantity:      it.quantity,
+      sellingPrice:  it.price,
+      originalPrice: it.originalPrice,
+      warehouse:     (it.warehouse ?? order.warehouse ?? 'HN') as Warehouse,
     })),
   )
-  const [products, setProducts] = useState<Product[]>([])
+  /* Cache sản phẩm để hiển thị ảnh/tồn kho trong ô tìm kiếm */
+  const [productCache, setProductCache] = useState<Record<string, Product>>({})
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
 
+  /* Tải dữ liệu các sản phẩm đã có trong đơn (theo id) để hiển thị */
   useEffect(() => {
+    const ids = order.items.map((it) => String(it.product)).filter(Boolean)
+    if (ids.length === 0) return
     let ignore = false
-    fetch('/api/products?limit=500')
-      .then((r) => r.json())
-      .then((d) => { if (!ignore) setProducts(d.products ?? d) })
-      .catch(() => { if (!ignore) setError('Không thể tải sản phẩm') })
+    Promise.all(
+      ids.map((id) => fetch(`/api/products/${id}`).then((r) => (r.ok ? r.json() : null)).catch(() => null)),
+    ).then((list) => {
+      if (ignore) return
+      const fetched = list.filter(Boolean) as Product[]
+      if (fetched.length === 0) return
+      setProductCache((prev) => {
+        const next = { ...prev }
+        for (const p of fetched) next[p._id] = p
+        return next
+      })
+    })
     return () => { ignore = true }
-  }, [])
+  }, [order.items])
 
   /* ── Item helpers ── */
   const addItem = () =>
-    setItems((prev) => [...prev, { product: '', quantity: 1, sellingPrice: 0 }])
+    setItems((prev) => [...prev, { product: '', quantity: 1, sellingPrice: 0, originalPrice: 0, warehouse: (order.warehouse ?? 'HN') as Warehouse }])
 
   const removeItem = (i: number) =>
     setItems((prev) => prev.filter((_, idx) => idx !== i))
 
-  const updateItem = (i: number, field: 'quantity' | 'sellingPrice', value: number) =>
+  const updateItem = (i: number, field: 'quantity' | 'sellingPrice' | 'originalPrice', value: number) =>
     setItems((prev) => {
       const next = [...prev]
       next[i] = { ...next[i], [field]: value }
       return next
     })
 
-  const handleProductChange = (i: number, productId: string) => {
-    const p = products.find((x) => x._id === productId)
+  const handleProductSelect = (i: number, product: Product) => {
+    setProductCache((prev) => ({ ...prev, [product._id]: product }))
     setItems((prev) => {
       const next = [...prev]
-      next[i] = { ...next[i], product: productId, sellingPrice: p ? p.sellingPrice : next[i].sellingPrice }
+      next[i] = { ...next[i], product: product._id, sellingPrice: product.sellingPrice, originalPrice: product.originalPrice }
       return next
     })
   }
+
+  const updateItemWarehouse = (i: number, wh: Warehouse) =>
+    setItems((prev) => { const next = [...prev]; next[i] = { ...next[i], warehouse: wh }; return next })
+
+  const stockDebounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const updateProductStock = useCallback((productId: string, field: 'stockHN' | 'stockQB' | 'stockSG', value: number) => {
+    setProductCache((prev) => {
+      const p = prev[productId]
+      if (!p) return prev
+      return { ...prev, [productId]: { ...p, [field]: value } }
+    })
+    const key = `${productId}:${field}`
+    clearTimeout(stockDebounceRef.current[key])
+    stockDebounceRef.current[key] = setTimeout(() => {
+      fetch(`/api/products/${productId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value }),
+      }).catch(() => {})
+    }, 600)
+  }, [])
 
   /* ── Totals ── */
   const totalAmount = useMemo(
@@ -111,14 +142,10 @@ function EditForm({
     [items],
   )
 
-  const profit = useMemo(() => {
-    const snapshot = new Map(order.items.map((it) => [String(it.product), it.originalPrice]))
-    return items.reduce((sum, it) => {
-      const prod     = products.find((p) => p._id === it.product)
-      const original = prod?.originalPrice ?? snapshot.get(it.product) ?? 0
-      return sum + (it.sellingPrice - original) * it.quantity
-    }, 0)
-  }, [items, products, order.items])
+  const profit = useMemo(
+    () => items.reduce((sum, it) => sum + (it.sellingPrice - it.originalPrice) * it.quantity, 0),
+    [items],
+  )
 
   /* ── Submit ── */
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
@@ -133,8 +160,8 @@ function EditForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
-          items: items.map(({ product, quantity, sellingPrice }) => ({
-            product, quantity, price: sellingPrice,
+          items: items.map(({ product, quantity, sellingPrice, originalPrice, warehouse }) => ({
+            product, quantity, price: sellingPrice, originalPrice, warehouse,
           })),
         }),
       })
@@ -216,7 +243,6 @@ function EditForm({
         )}
 
         {items.map((item, index) => {
-          const prod         = products.find((p) => p._id === item.product)
           const fallbackName = order.items.find((oi) => String(oi.product) === item.product)?.name
           return (
             <div key={index} className="p-3 bg-muted/30 rounded-lg border space-y-2">
@@ -224,37 +250,12 @@ function EditForm({
               <div className="flex items-end gap-2">
                 <div className="flex-1 space-y-1 min-w-0">
                   <Label className="text-xs">Sản phẩm</Label>
-                  <Select value={item.product} onValueChange={(val) => val && handleProductChange(index, val)}>
-                    <SelectTrigger className="w-full">
-                      {prod ? (
-                        <span className="flex items-center gap-2 min-w-0">
-                          <span className="relative h-5 w-5 shrink-0 overflow-hidden rounded border bg-muted">
-                            {prod.image && <Image src={prod.image} alt={prod.name} fill sizes="20px" className="object-cover" />}
-                          </span>
-                          <span className="truncate text-sm">{prod.name}</span>
-                        </span>
-                      ) : (
-                        <SelectValue placeholder={fallbackName ?? 'Chọn sản phẩm…'} />
-                      )}
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map((p) => (
-                        <SelectItem key={p._id} value={p._id}>
-                          <span className="flex items-center gap-2">
-                            <span className="relative h-6 w-6 shrink-0 overflow-hidden rounded border bg-muted">
-                              {p.image && <Image src={p.image} alt={p.name} fill sizes="24px" className="object-cover" />}
-                            </span>
-                            <span className="min-w-0">
-                              <span className="block truncate font-medium">{p.name}</span>
-                              <span className="block text-[11px] text-muted-foreground">
-                                {p.stock} trong kho · {formatVND(p.sellingPrice)}
-                              </span>
-                            </span>
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <ProductSearch
+                    selectedProduct={productCache[item.product]}
+                    warehouse={item.warehouse}
+                    fallbackName={fallbackName}
+                    onSelect={(p) => handleProductSelect(index, p)}
+                  />
                 </div>
 
                 <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)}
@@ -263,23 +264,60 @@ function EditForm({
                 </Button>
               </div>
 
-              {/* Hàng 2: giá vốn + giá bán + số lượng */}
-              <div className="flex items-end gap-2">
-                {/* Giá vốn (chỉ đọc) */}
-                {prod && (
-                  <div className="flex-1 space-y-1 min-w-0">
-                    <Label className="text-xs">Giá vốn</Label>
-                    <div className="h-8 px-2.5 flex items-center rounded-lg border bg-muted text-sm text-muted-foreground line-through truncate">
-                      {formatVND(prod.originalPrice)}
+              {/* Hàng 2: chọn kho + inline stock */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-[11px] text-muted-foreground shrink-0">Kho:</p>
+                {(Object.entries(WAREHOUSES) as [Warehouse, string][]).map(([key, label]) => {
+                  const stockField = warehouseStockKey[key]
+                  const selected = productCache[item.product]
+                  const stock = selected ? (selected[stockField] ?? 0) : null
+                  return (
+                    <div key={key} className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => updateItemWarehouse(index, key)}
+                        className={cn(
+                          'px-2 py-0.5 rounded border text-xs font-medium transition-colors',
+                          item.warehouse === key
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background text-muted-foreground border-border hover:bg-muted',
+                        )}
+                      >
+                        {label}
+                      </button>
+                      {stock !== null && (
+                        <input
+                          type="number" min="0" value={stock}
+                          onChange={(e) => updateProductStock(selected!._id, stockField, parseInt(e.target.value) || 0)}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+                          className={cn(
+                            'w-12 h-5 rounded border text-center text-xs tabular-nums bg-background focus:outline-none focus:ring-1 focus:ring-primary',
+                            stock === 0 ? 'border-red-400 text-red-500 dark:border-red-600' : 'border-border text-foreground',
+                          )}
+                        />
+                      )}
                     </div>
-                  </div>
-                )}
+                  )
+                })}
+              </div>
+
+              {/* Hàng 3: giá vốn + giá bán + số lượng */}
+              <div className="flex items-end gap-2">
+                {/* Giá vốn */}
+                <div className="flex-1 space-y-1 min-w-0">
+                  <Label className="text-xs">Giá vốn (nghìn ₫)</Label>
+                  <VndInput required className="h-9 text-sm"
+                    value={item.originalPrice}
+                    onChange={(v) => updateItem(index, 'originalPrice', v)} />
+                </div>
 
                 {/* Giá bán */}
                 <div className="w-28 space-y-1 shrink-0">
-                  <Label className="text-xs">Giá bán (₫)</Label>
-                  <Input type="number" required min="0" value={item.sellingPrice}
-                    onChange={(e) => updateItem(index, 'sellingPrice', parseFloat(e.target.value) || 0)} />
+                  <Label className="text-xs">Giá bán (nghìn ₫)</Label>
+                  <VndInput required className="h-9 text-sm"
+                    value={item.sellingPrice}
+                    onChange={(v) => updateItem(index, 'sellingPrice', v)} />
                 </div>
 
                 {/* Số lượng */}

@@ -192,7 +192,7 @@ export async function updateOrder(
     phone?: string
     address?: string
     status?: statusOrders
-    items?: { product: string; quantity: number; price?: number }[]
+    items?: { product: string; quantity: number; price?: number; originalPrice?: number; warehouse?: Warehouse }[]
   },
 ) {
   await dbConnect()
@@ -214,19 +214,23 @@ export async function updateOrder(
     const existing = await Order.findById(id).session(session)
     if (!existing) { await session.abortTransaction(); return null }
 
-    const field = warehouseField[(existing.warehouse as Warehouse) ?? 'HN']
+    const defaultWarehouse = (existing.warehouse as Warehouse) ?? 'HN'
 
-    const oldQtyByProduct = new Map<string, number>()
+    // Delta per (productId:warehouse) key
+    const oldQtyByKey = new Map<string, number>()
     for (const it of existing.items) {
-      const key = String(it.product)
-      oldQtyByProduct.set(key, (oldQtyByProduct.get(key) ?? 0) + it.quantity)
+      const wh = (it.warehouse as Warehouse) ?? defaultWarehouse
+      const key = `${String(it.product)}:${wh}`
+      oldQtyByKey.set(key, (oldQtyByKey.get(key) ?? 0) + it.quantity)
     }
-    const newQtyByProduct = new Map<string, number>()
+    const newQtyByKey = new Map<string, number>()
     for (const it of items) {
-      newQtyByProduct.set(it.product, (newQtyByProduct.get(it.product) ?? 0) + it.quantity)
+      const wh = it.warehouse ?? defaultWarehouse
+      const key = `${it.product}:${wh}`
+      newQtyByKey.set(key, (newQtyByKey.get(key) ?? 0) + it.quantity)
     }
 
-    const productIds = new Set<string>([...oldQtyByProduct.keys(), ...newQtyByProduct.keys()])
+    const allKeys = new Set([...oldQtyByKey.keys(), ...newQtyByKey.keys()])
 
     let totalAmount = 0
     let profit = 0
@@ -236,33 +240,41 @@ export async function updateOrder(
       quantity: number
       price: number
       originalPrice: number
+      warehouse: Warehouse
     }[] = []
 
-    for (const productId of productIds) {
+    for (const compositeKey of allKeys) {
+      const colonIdx = compositeKey.lastIndexOf(':')
+      const productId = compositeKey.slice(0, colonIdx)
+      const wh = compositeKey.slice(colonIdx + 1) as Warehouse
+      const field = warehouseField[wh]
       const product = await Product.findById(productId).session(session)
       if (!product) throw new Error(`Không tìm thấy sản phẩm: ${productId}`)
 
-      const delta = (newQtyByProduct.get(productId) ?? 0) - (oldQtyByProduct.get(productId) ?? 0)
+      const delta = (newQtyByKey.get(compositeKey) ?? 0) - (oldQtyByKey.get(compositeKey) ?? 0)
       const currentStock = (product[field] ?? 0) as number
       if (delta > 0 && currentStock < delta) {
-        throw new Error(`Kho không đủ hàng cho sản phẩm: ${product.name}`)
+        throw new Error(`Kho ${wh} không đủ hàng cho sản phẩm: ${product.name} (còn ${currentStock})`)
       }
       product[field] = currentStock - delta
       await product.save({ session })
     }
 
     for (const it of items) {
+      const wh = it.warehouse ?? defaultWarehouse
       const product = await Product.findById(it.product).session(session)
       if (!product) throw new Error(`Không tìm thấy sản phẩm: ${it.product}`)
       const unitPrice = it.price ?? product.sellingPrice
+      const originalPrice = it.originalPrice ?? product.originalPrice
       totalAmount += unitPrice * it.quantity
-      profit += (unitPrice - product.originalPrice) * it.quantity
+      profit += (unitPrice - originalPrice) * it.quantity
       orderItems.push({
         product: product._id as mongoose.Types.ObjectId,
         name: product.name,
         quantity: it.quantity,
         price: unitPrice,
-        originalPrice: product.originalPrice,
+        originalPrice,
+        warehouse: wh,
       })
     }
 
