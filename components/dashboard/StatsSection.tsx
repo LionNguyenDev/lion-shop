@@ -10,18 +10,21 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { ArrowDownRight, ArrowUpRight, ShoppingCart, TrendingUp, Wallet } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, ShoppingCart, TrendingUp, Wallet, XCircle } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { DateInput } from '@/components/ui/date-input'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatProfit, formatVND } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 type Range = 'today' | '7d' | '30d' | '365d'
+type BucketFormat = 'hour' | 'day' | 'month'
 type Metric = 'revenue' | 'profit'
 
 interface BucketRow { bucket: string; orders: number; revenue: number; profit: number }
 interface PeriodSummary { orders: number; revenue: number; profit: number; buckets: BucketRow[] }
-interface StatsResult { range: Range; current: PeriodSummary; previous: PeriodSummary }
+interface StatsResult { bucketFormat: BucketFormat; current: PeriodSummary; previous: PeriodSummary }
 
 const RANGE_OPTIONS: { value: Range; label: string }[] = [
   { value: 'today', label: 'Hôm nay' },
@@ -34,30 +37,35 @@ const compactVND = new Intl.NumberFormat('vi-VN', { notation: 'compact', maximum
 
 /* ── Helpers ── */
 
+function yesterdayISO(): string {
+  const d = new Date()
+  d.setDate(d.getDate() - 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function pctChange(curr: number, prev: number): number | null {
   if (prev === 0) return curr === 0 ? 0 : null
   return ((curr - prev) / Math.abs(prev)) * 100
 }
 
-function formatBucketLabel(bucket: string, range: Range): string {
-  if (range === 'today') return `${bucket}h`
-  if (range === '365d') {
+function formatBucketLabel(bucket: string, fmt: BucketFormat): string {
+  if (fmt === 'hour') return `${bucket}h`
+  if (fmt === 'month') {
     const [, m] = bucket.split('-')
     return `T${parseInt(m, 10)}`
   }
-  // 7d / 30d → "DD/MM"
   const [, m, d] = bucket.split('-')
   return `${d}/${m}`
 }
 
-function formatTooltipLabel(bucket: string, range: Range): string {
-  if (range === 'today') return `${bucket}:00`
-  if (range === '365d') {
+function formatTooltipLabel(bucket: string, fmt: BucketFormat): string {
+  if (fmt === 'hour') return `${bucket}:00`
+  if (fmt === 'month') {
     const [y, m] = bucket.split('-')
     return `Tháng ${parseInt(m, 10)}/${y}`
   }
   const [y, m, d] = bucket.split('-')
-  const date = new Date(Date.UTC(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10)))
+  const date = new Date(Date.UTC(+y, +m - 1, +d))
   const weekday = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'][date.getUTCDay()]
   return `${weekday}, ${d}/${m}/${y}`
 }
@@ -139,20 +147,20 @@ function ChartTooltip({
   active,
   payload,
   label,
-  range,
+  bucketFormat,
   metric,
 }: {
   active?: boolean
   payload?: ChartPoint[]
   label?: string
-  range: Range
+  bucketFormat: BucketFormat
   metric: Metric
 }) {
   if (!active || !payload?.length || !label) return null
   const value = payload[0].value
   return (
     <div className="rounded-lg border bg-popover px-3 py-2 shadow-md">
-      <p className="text-xs font-semibold text-foreground">{formatTooltipLabel(label, range)}</p>
+      <p className="text-xs font-semibold text-foreground">{formatTooltipLabel(label, bucketFormat)}</p>
       <p className="mt-1 text-sm font-bold tabular-nums" style={{ color: payload[0].color }}>
         {metric === 'revenue' ? formatVND(value) : formatProfit(value)}
       </p>
@@ -163,21 +171,33 @@ function ChartTooltip({
 /* ── Main section ── */
 
 export function StatsSection() {
-  const [range, setRange]     = useState<Range>('7d')
-  const [metric, setMetric]   = useState<Metric>('revenue')
-  const [data, setData]       = useState<StatsResult | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [range, setRange]       = useState<Range>('7d')
+  const [metric, setMetric]     = useState<Metric>('revenue')
+  const [data, setData]         = useState<StatsResult | null>(null)
+  const [loading, setLoading]   = useState(true)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo]     = useState('')
+
+  const isCustom    = !!dateFrom && !!dateTo
+  const yest        = yesterdayISO()
+  const isYesterday = dateFrom === yest && dateTo === yest
 
   useEffect(() => {
+    if (dateFrom && !dateTo) return   // wait until both are set
     let cancelled = false
     setLoading(true)
-    fetch(`/api/stats?range=${range}`)
+    const url = isCustom
+      ? `/api/stats?from=${dateFrom}&to=${dateTo}`
+      : `/api/stats?range=${range}`
+    fetch(url)
       .then((r) => r.json())
       .then((d: StatsResult) => { if (!cancelled) setData(d) })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [range])
+  }, [range, dateFrom, dateTo, isCustom])
+
+  const bucketFormat = data?.bucketFormat ?? 'day'
 
   const chartData = useMemo(() => {
     if (!data) return []
@@ -198,28 +218,75 @@ export function StatsSection() {
 
   return (
     <section className="mt-6 space-y-4">
-      {/* Header + range tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">Thống kê</h2>
-          <p className="text-xs text-muted-foreground">Số đơn, doanh thu và lãi/lỗ theo khoảng thời gian</p>
+      {/* Header + controls */}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Thống kê</h2>
+            <p className="text-xs text-muted-foreground">Số đơn, doanh thu và lãi/lỗ theo khoảng thời gian</p>
+          </div>
+
+          {/* Preset range tabs — dimmed when custom mode is active */}
+          <div className={cn(
+            'inline-flex rounded-lg border bg-muted/30 p-1 transition-opacity',
+            isCustom && 'pointer-events-none opacity-35',
+          )}>
+            {RANGE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setRange(opt.value)}
+                className={cn(
+                  'rounded-md px-3 py-1.5 text-xs font-semibold transition-all',
+                  range === opt.value && !isCustom
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="inline-flex rounded-lg border bg-muted/30 p-1">
-          {RANGE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setRange(opt.value)}
-              className={cn(
-                'rounded-md px-3 py-1.5 text-xs font-semibold transition-all',
-                range === opt.value
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
+
+        {/* Custom date range row */}
+        <div className="flex flex-wrap items-center gap-2">
+          <DateInput
+            value={dateFrom}
+            onChange={setDateFrom}
+            placeholder="Từ ngày"
+            className="w-32 sm:w-36"
+          />
+          <span className="text-muted-foreground text-xs shrink-0">—</span>
+          <DateInput
+            value={dateTo}
+            onChange={setDateTo}
+            placeholder="Đến ngày"
+            className="w-32 sm:w-36"
+          />
+
+          <Button
+            variant={isYesterday ? 'default' : 'outline'}
+            size="sm"
+            className="shrink-0"
+            onClick={() => {
+              if (isYesterday) { setDateFrom(''); setDateTo('') }
+              else { setDateFrom(yest); setDateTo(yest) }
+            }}
+          >
+            Hôm qua
+          </Button>
+
+          {isCustom && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="shrink-0"
+              onClick={() => { setDateFrom(''); setDateTo('') }}
             >
-              {opt.label}
-            </button>
-          ))}
+              <XCircle className="h-4 w-4" /> Xóa
+            </Button>
+          )}
         </div>
       </div>
 
@@ -304,7 +371,6 @@ export function StatsSection() {
             <div
               className="h-70 w-full"
               style={{
-                // Color tokens for the chart gradient/stroke
                 '--color-chart-revenue': 'oklch(0.696 0.17 162.48)',
                 '--color-chart-profit':  'oklch(0.769 0.188 70.08)',
                 '--color-chart-loss':    'oklch(0.704 0.191 22.216)',
@@ -321,12 +387,12 @@ export function StatsSection() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.4} />
                   <XAxis
                     dataKey="bucket"
-                    tickFormatter={(b) => formatBucketLabel(b, range)}
+                    tickFormatter={(b) => formatBucketLabel(b, bucketFormat)}
                     stroke="hsl(var(--muted-foreground))"
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}
-                    minTickGap={range === '30d' ? 24 : 4}
+                    minTickGap={bucketFormat === 'day' && chartData.length > 20 ? 24 : 4}
                   />
                   <YAxis
                     tickFormatter={(v) => compactVND.format(v) + '₫'}
@@ -343,7 +409,7 @@ export function StatsSection() {
                         active={props.active}
                         payload={props.payload as unknown as ChartPoint[]}
                         label={props.label as string}
-                        range={range}
+                        bucketFormat={bucketFormat}
                         metric={metric}
                       />
                     )}

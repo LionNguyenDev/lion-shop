@@ -51,7 +51,7 @@ export default function SignUpPage() {
       <div className="relative z-10 w-full max-w-sm animate-fade-up">
         {/* Logo */}
         <Link href="/" className="mb-6 flex flex-col items-center gap-2">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 via-pink-500 to-violet-500 text-white shadow-xl shadow-pink-500/30">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 via-blue-500 to-85% text-white shadow-xl shadow-pink-500/30">
             <Sparkles className="h-5 w-5" />
           </div>
           <p className="text-sm font-semibold">Lion Shop</p>
@@ -92,7 +92,7 @@ export default function SignUpPage() {
                 autoComplete="username"
                 required
                 minLength={3}
-                placeholder="nguyendanhluu"
+                placeholder="danhluu"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="h-10"

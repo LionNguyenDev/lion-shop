@@ -183,7 +183,7 @@ function EditForm({
       {/* Trạng thái */}
       <div className="space-y-2">
         <Label>Trạng thái</Label>
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {STATUS_OPTIONS.map((s) => (
             <button key={s} type="button" onClick={() => setForm((p) => ({ ...p, status: s }))}
               className={cn(
@@ -219,71 +219,76 @@ function EditForm({
           const prod         = products.find((p) => p._id === item.product)
           const fallbackName = order.items.find((oi) => String(oi.product) === item.product)?.name
           return (
-            <div key={index} className="flex gap-2 items-end p-3 bg-muted/30 rounded-lg border">
-              {/* Chọn sản phẩm */}
-              <div className="flex-1 space-y-1 min-w-0">
-                <Label className="text-xs">Sản phẩm</Label>
-                <Select value={item.product} onValueChange={(val) => val && handleProductChange(index, val)}>
-                  <SelectTrigger className="w-full">
-                    {prod ? (
-                      <span className="flex items-center gap-2 min-w-0">
-                        <span className="relative h-5 w-5 shrink-0 overflow-hidden rounded border bg-muted">
-                          {prod.image && <Image src={prod.image} alt={prod.name} fill sizes="20px" className="object-cover" />}
-                        </span>
-                        <span className="truncate text-sm">{prod.name}</span>
-                      </span>
-                    ) : (
-                      <SelectValue placeholder={fallbackName ?? 'Chọn sản phẩm…'} />
-                    )}
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.map((p) => (
-                      <SelectItem key={p._id} value={p._id}>
-                        <span className="flex items-center gap-2">
-                          <span className="relative h-6 w-6 shrink-0 overflow-hidden rounded border bg-muted">
-                            {p.image && <Image src={p.image} alt={p.name} fill sizes="24px" className="object-cover" />}
+            <div key={index} className="p-3 bg-muted/30 rounded-lg border space-y-2">
+              {/* Hàng 1: chọn sản phẩm + nút xoá */}
+              <div className="flex items-end gap-2">
+                <div className="flex-1 space-y-1 min-w-0">
+                  <Label className="text-xs">Sản phẩm</Label>
+                  <Select value={item.product} onValueChange={(val) => val && handleProductChange(index, val)}>
+                    <SelectTrigger className="w-full">
+                      {prod ? (
+                        <span className="flex items-center gap-2 min-w-0">
+                          <span className="relative h-5 w-5 shrink-0 overflow-hidden rounded border bg-muted">
+                            {prod.image && <Image src={prod.image} alt={prod.name} fill sizes="20px" className="object-cover" />}
                           </span>
-                          <span className="min-w-0">
-                            <span className="block truncate font-medium">{p.name}</span>
-                            <span className="block text-[11px] text-muted-foreground">
-                              {p.stock} trong kho · {formatVND(p.sellingPrice)}
+                          <span className="truncate text-sm">{prod.name}</span>
+                        </span>
+                      ) : (
+                        <SelectValue placeholder={fallbackName ?? 'Chọn sản phẩm…'} />
+                      )}
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map((p) => (
+                        <SelectItem key={p._id} value={p._id}>
+                          <span className="flex items-center gap-2">
+                            <span className="relative h-6 w-6 shrink-0 overflow-hidden rounded border bg-muted">
+                              {p.image && <Image src={p.image} alt={p.name} fill sizes="24px" className="object-cover" />}
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block truncate font-medium">{p.name}</span>
+                              <span className="block text-[11px] text-muted-foreground">
+                                {p.stock} trong kho · {formatVND(p.sellingPrice)}
+                              </span>
                             </span>
                           </span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Giá vốn (chỉ đọc) */}
-              {prod && (
-                <div className="w-24 space-y-1 shrink-0">
-                  <Label className="text-xs">Giá vốn</Label>
-                  <div className="h-8 px-2.5 flex items-center rounded-lg border bg-muted text-sm text-muted-foreground line-through">
-                    {formatVND(prod.originalPrice)}
-                  </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
 
-              {/* Giá bán */}
-              <div className="w-28 space-y-1 shrink-0">
-                <Label className="text-xs">Giá bán (₫)</Label>
-                <Input type="number" required min="0" value={item.sellingPrice}
-                  onChange={(e) => updateItem(index, 'sellingPrice', parseFloat(e.target.value) || 0)} />
+                <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)}
+                  className="hover:text-destructive hover:bg-destructive/10 shrink-0">
+                  <Trash2 />
+                </Button>
               </div>
 
-              {/* Số lượng */}
-              <div className="w-16 space-y-1 shrink-0">
-                <Label className="text-xs">SL</Label>
-                <Input type="number" required min="1" value={item.quantity}
-                  onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)} />
-              </div>
+              {/* Hàng 2: giá vốn + giá bán + số lượng */}
+              <div className="flex items-end gap-2">
+                {/* Giá vốn (chỉ đọc) */}
+                {prod && (
+                  <div className="flex-1 space-y-1 min-w-0">
+                    <Label className="text-xs">Giá vốn</Label>
+                    <div className="h-8 px-2.5 flex items-center rounded-lg border bg-muted text-sm text-muted-foreground line-through truncate">
+                      {formatVND(prod.originalPrice)}
+                    </div>
+                  </div>
+                )}
 
-              <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)}
-                className="hover:text-destructive hover:bg-destructive/10 shrink-0">
-                <Trash2 />
-              </Button>
+                {/* Giá bán */}
+                <div className="w-28 space-y-1 shrink-0">
+                  <Label className="text-xs">Giá bán (₫)</Label>
+                  <Input type="number" required min="0" value={item.sellingPrice}
+                    onChange={(e) => updateItem(index, 'sellingPrice', parseFloat(e.target.value) || 0)} />
+                </div>
+
+                {/* Số lượng */}
+                <div className="w-16 space-y-1 shrink-0">
+                  <Label className="text-xs">SL</Label>
+                  <Input type="number" required min="1" value={item.quantity}
+                    onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)} />
+                </div>
+              </div>
             </div>
           )
         })}
@@ -310,11 +315,11 @@ function EditForm({
         </div>
       </div>
 
-      <div className="flex gap-3 pt-2 border-t">
+      <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2 border-t">
+        <Button type="button" variant="outline" onClick={onClose} className="sm:w-auto w-full">Hủy</Button>
         <Button type="submit" disabled={loading} className="flex-1">
           {loading ? 'Đang lưu…' : 'Lưu thay đổi'}
         </Button>
-        <Button type="button" variant="outline" onClick={onClose}>Hủy</Button>
       </div>
     </form>
   )
@@ -326,7 +331,7 @@ function EditForm({
 export default function OrderEditModal({ order, onClose, onSaved }: OrderEditModalProps) {
   return (
     <Dialog open={!!order} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-full sm:max-w-2xl max-h-[90dvh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Chỉnh sửa đơn hàng</DialogTitle>
           {order && (

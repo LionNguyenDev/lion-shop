@@ -218,67 +218,75 @@ export default function OrdersPage() {
       </div>
 
       {/* ── Filters ── */}
-      <div className="mb-4 flex flex-wrap gap-3">
-        <div className="relative min-w-56 flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Tìm theo tên KH, SĐT, mã đơn, tên sản phẩm…"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            className="pl-9"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v ?? ''); setPage(1) }}>
-          <SelectTrigger className="w-44">
-            <ListOrdered className="h-4 w-4 text-muted-foreground" />
-            <SelectValue placeholder="Trạng thái thanh toán" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Tất cả</SelectItem>
-            {PAYMENT_STATUSES.map((s) => <SelectItem key={s} value={s}>{statusOrdersVN[s]}</SelectItem>)}
-          </SelectContent>
-        </Select>
-
-        {/* Date range */}
-        <div className="flex items-center gap-2">
-          <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
-          <DateInput
-            value={dateFrom}
-            onChange={(v) => { setDateFrom(v); setPage(1) }}
-            className="w-36"
-          />
-          <span className="text-muted-foreground text-sm">—</span>
-          <DateInput
-            value={dateTo}
-            onChange={(v) => { setDateTo(v); setPage(1) }}
-            className="w-36"
-          />
+      <div className="mb-4 space-y-2">
+        {/* Row 1: Search + Status */}
+        <div className="flex flex-wrap gap-2">
+          <div className="relative min-w-0 flex-1 basis-56">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Tìm theo tên KH, SĐT, mã đơn, tên sản phẩm…"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              className="pl-9"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v ?? ''); setPage(1) }}>
+            <SelectTrigger className="w-full sm:w-44">
+              <ListOrdered className="h-4 w-4 text-muted-foreground" />
+              <SelectValue placeholder="Trạng thái thanh toán" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Tất cả</SelectItem>
+              {PAYMENT_STATUSES.map((s) => <SelectItem key={s} value={s}>{statusOrdersVN[s]}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
 
-        {(() => {
-          const t = todayISO()
-          const isToday = dateFrom === t && dateTo === t
-          return (
-            <Button
-              variant={isToday ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => {
-                const t2 = todayISO()
-                if (isToday) { setDateFrom(''); setDateTo('') }
-                else { setDateFrom(t2); setDateTo(t2) }
-                setPage(1)
-              }}
-            >
-              Đơn hôm nay
+        {/* Row 2: Date range + quick filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
+            <DateInput
+              value={dateFrom}
+              onChange={(v) => { setDateFrom(v); setPage(1) }}
+              placeholder="Từ ngày"
+              className="w-32 sm:w-36"
+            />
+            <span className="text-muted-foreground text-xs shrink-0">—</span>
+            <DateInput
+              value={dateTo}
+              onChange={(v) => { setDateTo(v); setPage(1) }}
+              placeholder="Đến ngày"
+              className="w-32 sm:w-36"
+            />
+          </div>
+
+          {(() => {
+            const t = todayISO()
+            const isToday = dateFrom === t && dateTo === t
+            return (
+              <Button
+                variant={isToday ? 'default' : 'outline'}
+                size="sm"
+                className="shrink-0"
+                onClick={() => {
+                  const t2 = todayISO()
+                  if (isToday) { setDateFrom(''); setDateTo('') }
+                  else { setDateFrom(t2); setDateTo(t2) }
+                  setPage(1)
+                }}
+              >
+                Hôm nay
+              </Button>
+            )
+          })()}
+
+          {(search || statusFilter || dateFrom || dateTo) && (
+            <Button variant="ghost" size="sm" className="shrink-0" onClick={() => { setSearch(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); setPage(1) }}>
+              <XCircle className="h-4 w-4" /> Xóa bộ lọc
             </Button>
-          )
-        })()}
-
-        {(search || statusFilter || dateFrom || dateTo) && (
-          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); setPage(1) }}>
-            <XCircle className="h-4 w-4" /> Xóa bộ lọc
-          </Button>
-        )}
+          )}
+        </div>
       </div>
 
       {!loading && (
