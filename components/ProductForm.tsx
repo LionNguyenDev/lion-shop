@@ -144,7 +144,7 @@ export default function ProductForm({
       <div className="space-y-1.5">
         <Label>Tồn kho theo kho</Label>
         <div className="grid grid-cols-3 gap-3">
-          {([['stockHN', 'Hà Nội'], ['stockQB', 'Quảng Bình'], ['stockSG', 'Sài Gòn']] as const).map(([field, label]) => (
+          {([['stockQB', 'Quảng Bình'], ['stockHN', 'Hà Nội'], ['stockSG', 'Sài Gòn']] as const).map(([field, label]) => (
             <div key={field} className="space-y-1">
               <p className="text-xs text-muted-foreground">{label}</p>
               <Input

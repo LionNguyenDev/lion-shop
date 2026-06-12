@@ -104,7 +104,7 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
   const [productCache, setProductCache] = useState<Record<string, Product>>({})
   const [selectedItems, setSelectedItems] = useState<
     { product: string; quantity: number; sellingPrice: number; warehouse: Warehouse }[]
-  >((initialItems ?? []).map((it) => ({ ...it, warehouse: it.warehouse ?? 'HN' })))
+  >((initialItems ?? []).map((it) => ({ ...it, warehouse: it.warehouse ?? 'QB' })))
   const [customerInfo, setCustomerInfo] = useState({ name: '', address: '', phone: '' })
   const [autoFilled, setAutoFilled]     = useState(false)
   const [confirmOpen, setConfirmOpen]   = useState(false)
@@ -148,7 +148,7 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
     return () => { cancelled = true }
   }, [debouncedPhone])
 
-  const addItem    = () => setSelectedItems((prev) => [...prev, { product: '', quantity: 1, sellingPrice: 0, warehouse: 'HN' }])
+  const addItem    = () => setSelectedItems((prev) => [...prev, { product: '', quantity: 1, sellingPrice: 0, warehouse: 'QB' }])
   const removeItem = (i: number) => setSelectedItems((prev) => prev.filter((_, idx) => idx !== i))
   const updateItem = (i: number, field: 'quantity' | 'sellingPrice', value: number) =>
     setSelectedItems((prev) => { const next = [...prev]; next[i] = { ...next[i], [field]: value }; return next })

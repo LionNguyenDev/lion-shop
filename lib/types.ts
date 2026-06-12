@@ -1,6 +1,6 @@
 export const WAREHOUSES = {
-  HN: 'Hà Nội',
   QB: 'Quảng Bình',
+  HN: 'Hà Nội',
   SG: 'Sài Gòn',
 } as const
 

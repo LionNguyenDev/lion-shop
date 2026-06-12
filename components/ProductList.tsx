@@ -218,8 +218,8 @@ export default function ProductList({
                   <div className="flex flex-col items-end gap-1">
                     {(
                       [
-                        ["HN", product.stockHN],
                         ["QB", product.stockQB],
+                        ["HN", product.stockHN],
                         ["SG", product.stockSG],
                       ] as const
                     ).map(([label, qty]) => {
