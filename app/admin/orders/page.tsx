@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pagination } from '@/components/ui/pagination'
 import { toast } from 'sonner'
-import { CalendarDays, CheckCircle, ListOrdered, Plus, Search, SlidersHorizontal, Trash2, XCircle } from 'lucide-react'
+import { CalendarDays, CheckCircle, Eye, EyeOff, ListOrdered, Plus, Search, SlidersHorizontal, Trash2, XCircle } from 'lucide-react'
 import { AppShell } from '@/components/AppShell'
 import OrderList from '@/components/OrderList'
 import OrderForm from '@/components/OrderForm'
@@ -67,6 +67,7 @@ export default function OrdersPage() {
   const [loading, setLoading]             = useState(true)
   const [createModal, setCreateModal]     = useState<CreateModal>('closed')
   const [createdOrder, setCreatedOrder]   = useState<Order | null>(null)
+  const [showCreatedProfit, setShowCreatedProfit] = useState(false)
   const [editingOrder, setEditingOrder]   = useState<Order | null>(null)
   const [deleteTarget, setDeleteTarget]       = useState<Order | null>(null)
   const [deleteLoading, setDeleteLoading]     = useState(false)
@@ -124,7 +125,7 @@ export default function OrdersPage() {
     { label: 'Đã thanh toán',   value: serverStats.paid,   color: 'text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500 dark:bg-emerald-400' },
   ], [serverStats])
 
-  const handleCreateSuccess = (order: Order) => { setCreatedOrder(order); setCreateModal('success'); fetchOrders(true) }
+  const handleCreateSuccess = (order: Order) => { setCreatedOrder(order); setShowCreatedProfit(false); setCreateModal('success'); fetchOrders(true) }
 
   const handleEditSaved = (updated: Order) => {
     setOrders((prev) => prev.map((o) => (o._id === updated._id ? updated : o)))
@@ -398,23 +399,44 @@ export default function OrdersPage() {
                 <span className="font-semibold">Tổng cộng</span>
                 <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{formatVND(createdOrder.totalAmount)}</span>
               </div>
-              <div className={cn(
-                'flex items-center justify-between px-3 py-2 rounded-lg border',
-                createdOrder.profit > 0 && 'bg-emerald-500/10 border-emerald-500/30',
-                createdOrder.profit < 0 && 'bg-red-500/10 border-red-500/30',
-                createdOrder.profit === 0 && 'bg-muted/40',
-              )}>
-                <span className="text-sm font-semibold">
-                  {createdOrder.profit >= 0 ? 'Lãi' : 'Lỗ'}
-                </span>
-                <span className={cn(
-                  'text-base font-bold tabular-nums',
-                  createdOrder.profit > 0 && 'text-emerald-600 dark:text-emerald-400',
-                  createdOrder.profit < 0 && 'text-red-600 dark:text-red-400',
+              {showCreatedProfit ? (
+                <div className={cn(
+                  'flex items-center justify-between px-3 py-2 rounded-lg border',
+                  createdOrder.profit > 0 && 'bg-emerald-500/10 border-emerald-500/30',
+                  createdOrder.profit < 0 && 'bg-red-500/10 border-red-500/30',
+                  createdOrder.profit === 0 && 'bg-muted/40',
                 )}>
-                  {formatProfit(createdOrder.profit)}
-                </span>
-              </div>
+                  <span className="text-sm font-semibold">
+                    {createdOrder.profit >= 0 ? 'Lãi' : 'Lỗ'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      'text-base font-bold tabular-nums',
+                      createdOrder.profit > 0 && 'text-emerald-600 dark:text-emerald-400',
+                      createdOrder.profit < 0 && 'text-red-600 dark:text-red-400',
+                    )}>
+                      {formatProfit(createdOrder.profit)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowCreatedProfit(false)}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Ẩn lãi/lỗ"
+                    >
+                      <EyeOff className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowCreatedProfit(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-muted/40 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  Xem lãi/lỗ
+                </button>
+              )}
               <Button className="w-full" onClick={() => { setCreateModal('closed'); toast.success('Đơn hàng đã tạo thành công!') }}>Xong</Button>
             </div>
           )}

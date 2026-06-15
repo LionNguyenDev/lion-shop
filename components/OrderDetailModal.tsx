@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { formatVND, formatProfit } from '@/lib/format'
 import { Order, statusOrdersVN } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -23,6 +25,8 @@ const statusBadgeClass: Record<string, string> = {
 }
 
 export default function OrderDetailModal({ order, onClose }: OrderDetailModalProps) {
+  const [showProfit, setShowProfit] = useState(false)
+
   if (!order) return null
 
   return (
@@ -120,21 +124,42 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
               <span className="text-muted-foreground">Tổng tiền hàng</span>
               <span className="font-semibold">{formatVND(order.totalAmount)}</span>
             </div>
-            <div className={cn(
-              'flex items-center justify-between px-3 py-2 rounded-lg border text-sm',
-              order.profit > 0 && 'bg-emerald-500/10 border-emerald-500/30',
-              order.profit < 0 && 'bg-red-500/10 border-red-500/30',
-              order.profit === 0 && 'bg-muted/40 border-transparent',
-            )}>
-              <span className="font-semibold">{order.profit >= 0 ? 'Lãi' : 'Lỗ'}</span>
-              <span className={cn(
-                'font-bold tabular-nums',
-                order.profit > 0 && 'text-emerald-600 dark:text-emerald-400',
-                order.profit < 0 && 'text-red-600 dark:text-red-400',
+            {showProfit ? (
+              <div className={cn(
+                'flex items-center justify-between px-3 py-2 rounded-lg border text-sm',
+                order.profit > 0 && 'bg-emerald-500/10 border-emerald-500/30',
+                order.profit < 0 && 'bg-red-500/10 border-red-500/30',
+                order.profit === 0 && 'bg-muted/40 border-transparent',
               )}>
-                {formatProfit(order.profit)}
-              </span>
-            </div>
+                <span className="font-semibold">{order.profit >= 0 ? 'Lãi' : 'Lỗ'}</span>
+                <div className="flex items-center gap-2">
+                  <span className={cn(
+                    'font-bold tabular-nums',
+                    order.profit > 0 && 'text-emerald-600 dark:text-emerald-400',
+                    order.profit < 0 && 'text-red-600 dark:text-red-400',
+                  )}>
+                    {formatProfit(order.profit)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowProfit(false)}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Ẩn lãi/lỗ"
+                  >
+                    <EyeOff className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowProfit(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-muted/40 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Xem lãi/lỗ
+              </button>
+            )}
           </div>
 
         </div>
