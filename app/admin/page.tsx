@@ -61,7 +61,7 @@ function StatCard({
             {loading ? (
               <Skeleton className="mt-2 h-8 w-28" />
             ) : (
-              <p className="mt-1 text-2xl font-bold tracking-tight">{value}</p>
+              <p className="mt-1 text-xl font-bold tracking-tight">{value}</p>
             )}
             {sub && !loading && (
               <p className="mt-1 text-xs text-muted-foreground">{sub}</p>

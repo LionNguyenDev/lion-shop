@@ -103,7 +103,7 @@ function NameAutocomplete({ value, onChange, onSelect }: NameAutocompleteProps) 
 export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFormProps) {
   const [productCache, setProductCache] = useState<Record<string, Product>>({})
   const [selectedItems, setSelectedItems] = useState<
-    { product: string; quantity: number; sellingPrice: number; warehouse: Warehouse }[]
+    { product: string; quantity: number | ''; sellingPrice: number; warehouse: Warehouse }[]
   >((initialItems ?? []).map((it) => ({ ...it, warehouse: it.warehouse ?? 'QB' })))
   const [customerInfo, setCustomerInfo] = useState({ name: '', address: '', phone: '' })
   const [autoFilled, setAutoFilled]     = useState(false)
@@ -150,7 +150,7 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
 
   const addItem    = () => setSelectedItems((prev) => [...prev, { product: '', quantity: 1, sellingPrice: 0, warehouse: 'QB' }])
   const removeItem = (i: number) => setSelectedItems((prev) => prev.filter((_, idx) => idx !== i))
-  const updateItem = (i: number, field: 'quantity' | 'sellingPrice', value: number) =>
+  const updateItem = (i: number, field: 'quantity' | 'sellingPrice', value: number | '') =>
     setSelectedItems((prev) => { const next = [...prev]; next[i] = { ...next[i], [field]: value }; return next })
   const updateItemWarehouse = (i: number, w: Warehouse) =>
     setSelectedItems((prev) => { const next = [...prev]; next[i] = { ...next[i], warehouse: w }; return next })
@@ -195,7 +195,7 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: selectedItems.map(({ product, quantity, sellingPrice, warehouse }) => ({ product, quantity, price: sellingPrice, warehouse })),
+          items: selectedItems.map(({ product, quantity, sellingPrice, warehouse }) => ({ product, quantity: Number(quantity) || 1, price: sellingPrice, warehouse })),
           ...customerInfo,
           status,
         }),
@@ -358,9 +358,15 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
                 <div className="w-16 space-y-1 shrink-0">
                   <Label className="text-[11px]">SL</Label>
                   <Input
-                    type="number" required min="1" className="h-8 text-sm"
+                    type="number" required min="1"
+                    inputMode="numeric"
+                    className="h-8 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     value={item.quantity}
-                    onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      updateItem(index, 'quantity', v === '' ? '' : Math.max(1, parseInt(v) || 1))
+                    }}
+                    onBlur={() => { if (item.quantity === '') updateItem(index, 'quantity', 1) }}
                   />
                 </div>
               </div>

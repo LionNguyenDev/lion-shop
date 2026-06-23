@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Pagination } from '@/components/ui/pagination'
 import { toast } from 'sonner'
-import { AlertCircle, CheckCircle, Package, Plus, Search, ShoppingCart, SlidersHorizontal, TrendingUp, X, XCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle, Eye, EyeOff, Package, Plus, Search, ShoppingCart, SlidersHorizontal, TrendingUp, X, XCircle } from 'lucide-react'
 import { AppShell } from '@/components/AppShell'
 import OrderForm from '@/components/OrderForm'
 import ProductForm from '@/components/ProductForm'
@@ -57,6 +57,7 @@ export default function ProductsPage() {
   const [selectedProductsCache, setSelectedProductsCache] = useState<Map<string, Product>>(new Map())
   const [orderOpen, setOrderOpen]                 = useState(false)
   const [createdOrder, setCreatedOrder]           = useState<Order | null>(null)
+  const [showCreatedProfit, setShowCreatedProfit] = useState(false)
   const router = useRouter()
 
   const handleSelectionChange = (newIds: Set<string>) => {
@@ -305,6 +306,7 @@ export default function ProductsPage() {
             onSuccess={(order) => {
               setOrderOpen(false)
               clearSelection()
+              setShowCreatedProfit(false)
               setCreatedOrder(order)
             }}
             onCancel={() => setOrderOpen(false)}
@@ -316,7 +318,7 @@ export default function ProductsPage() {
       <Dialog
         open={!!createdOrder}
         onOpenChange={(open) => {
-          if (!open) { setCreatedOrder(null); router.push('/admin/orders') }
+          if (!open) setCreatedOrder(null)
         }}
       >
         <DialogContent className="sm:max-w-md">
@@ -356,7 +358,10 @@ export default function ProductsPage() {
                 <div className="divide-y rounded-lg border overflow-hidden">
                   {createdOrder.items.map((item, i) => (
                     <div key={i} className="flex items-center justify-between px-3 py-2 bg-card text-sm">
-                      <span><span className="font-semibold">{item.quantity}×</span> {item.name}</span>
+                      <span className="flex flex-col">
+                        <span><span className="font-semibold">{item.quantity}×</span> {item.name}</span>
+                        <span className="text-xs text-muted-foreground/70">{formatVND(item.price)}/sản phẩm</span>
+                      </span>
                       <span className="text-muted-foreground">{formatVND(item.price * item.quantity)}</span>
                     </div>
                   ))}
@@ -370,21 +375,42 @@ export default function ProductsPage() {
                 </span>
               </div>
 
-              <div className={cn(
-                'flex items-center justify-between px-3 py-2 rounded-lg border',
-                createdOrder.profit > 0 && 'bg-emerald-500/10 border-emerald-500/30',
-                createdOrder.profit < 0 && 'bg-red-500/10 border-red-500/30',
-                createdOrder.profit === 0 && 'bg-muted/40',
-              )}>
-                <span className="text-sm font-semibold">{createdOrder.profit >= 0 ? 'Lãi' : 'Lỗ'}</span>
-                <span className={cn(
-                  'text-base font-bold tabular-nums',
-                  createdOrder.profit > 0 && 'text-emerald-600 dark:text-emerald-400',
-                  createdOrder.profit < 0 && 'text-red-600 dark:text-red-400',
+              {showCreatedProfit ? (
+                <div className={cn(
+                  'flex items-center justify-between px-3 py-2 rounded-lg border',
+                  createdOrder.profit > 0 && 'bg-emerald-500/10 border-emerald-500/30',
+                  createdOrder.profit < 0 && 'bg-red-500/10 border-red-500/30',
+                  createdOrder.profit === 0 && 'bg-muted/40',
                 )}>
-                  {formatProfit(createdOrder.profit)}
-                </span>
-              </div>
+                  <span className="text-sm font-semibold">{createdOrder.profit >= 0 ? 'Lãi' : 'Lỗ'}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      'text-base font-bold tabular-nums',
+                      createdOrder.profit > 0 && 'text-emerald-600 dark:text-emerald-400',
+                      createdOrder.profit < 0 && 'text-red-600 dark:text-red-400',
+                    )}>
+                      {formatProfit(createdOrder.profit)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowCreatedProfit(false)}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Ẩn lãi/lỗ"
+                    >
+                      <EyeOff className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowCreatedProfit(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-muted/40 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  Xem lãi/lỗ
+                </button>
+              )}
 
               <Button
                 className="w-full"

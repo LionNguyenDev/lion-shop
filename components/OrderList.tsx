@@ -162,10 +162,10 @@ export default function OrderList({
                 {/* Mã đơn hàng */}
                 <TableCell className="py-3">
                   <p className="font-mono text-sm font-semibold text-foreground">
-                    #{order._id.slice(-10).toUpperCase()}
+                    {new Date(order.createdAt).toLocaleDateString('vi-VN')}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {new Date(order.createdAt).toLocaleDateString('vi-VN')}
+                    #{order._id.slice(-10).toUpperCase()}
                   </p>
                 </TableCell>
 

@@ -389,7 +389,10 @@ export default function OrdersPage() {
                 <div className="divide-y rounded-lg border overflow-hidden">
                   {createdOrder.items.map((item, i) => (
                     <div key={i} className="flex items-center justify-between px-3 py-2 bg-card text-sm">
-                      <span><span className="font-semibold">{item.quantity}×</span> {item.name}</span>
+                      <span className="flex flex-col">
+                        <span><span className="font-semibold">{item.quantity}×</span> {item.name}</span>
+                        <span className="text-xs text-muted-foreground/70">{formatVND(item.price)}/sản phẩm</span>
+                      </span>
                       <span className="text-muted-foreground">{formatVND(item.price * item.quantity)}</span>
                     </div>
                   ))}
