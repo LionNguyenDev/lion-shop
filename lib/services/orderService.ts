@@ -292,5 +292,33 @@ export async function updateOrder(
 
 export async function deleteOrder(id: string) {
   await dbConnect()
-  return Order.findByIdAndDelete(id)
+  const session = await mongoose.startSession()
+  session.startTransaction()
+
+  try {
+    const order = await Order.findById(id).session(session)
+    if (!order) {
+      await session.abortTransaction()
+      return null
+    }
+
+    for (const item of order.items) {
+      const wh = (item.warehouse as Warehouse) ?? (order.warehouse as Warehouse) ?? 'HN'
+      const field = warehouseField[wh]
+      const product = await Product.findById(item.product).session(session)
+      if (!product) continue
+
+      ;(product[field] as number) = ((product[field] ?? 0) as number) + item.quantity
+      await product.save({ session })
+    }
+
+    await Order.findByIdAndDelete(id).session(session)
+    await session.commitTransaction()
+    return order
+  } catch (error) {
+    await session.abortTransaction()
+    throw error
+  } finally {
+    session.endSession()
+  }
 }
