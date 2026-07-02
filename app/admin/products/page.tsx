@@ -9,7 +9,7 @@ import { AppShell } from '@/components/AppShell'
 import OrderForm from '@/components/OrderForm'
 import ProductForm from '@/components/ProductForm'
 import ProductList from '@/components/ProductList'
-import { Order, Product, statusOrders, statusOrdersVN } from '@/lib/types'
+import { Order, Product, statusOrders, statusOrdersVN, WAREHOUSES, type Warehouse } from '@/lib/types'
 import { formatProfit, formatVND } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -86,6 +86,10 @@ export default function ProductsPage() {
   const [search, setSearch] = useState('')
   const [page, setPage]     = useState(1)
 
+  // Bộ lọc "Hết hàng" bật từ card thống kê, có thể thu hẹp theo 1 trong 3 kho
+  const [outOfStockOnly, setOutOfStockOnly] = useState(false)
+  const [warehouseFilter, setWarehouseFilter] = useState<Warehouse | null>(null)
+
   // Debounced value used in API calls
   const [apiSearch, setApiSearch] = useState('')
 
@@ -103,6 +107,8 @@ export default function ProductsPage() {
     try {
       const params = new URLSearchParams()
       if (apiSearch) params.set('search', apiSearch)
+      if (outOfStockOnly) params.set('outOfStock', '1')
+      if (warehouseFilter) params.set('warehouse', warehouseFilter)
       params.set('page',  page.toString())
       params.set('limit', PAGE_SIZE.toString())
 
@@ -119,16 +125,30 @@ export default function ProductsPage() {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [apiSearch, page])
+  }, [apiSearch, page, outOfStockOnly, warehouseFilter])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
 
   const stats = useMemo(() => [
-    { label: 'Tổng sản phẩm', value: apiStats.total.toString(),          color: 'text-blue-600 dark:text-blue-400',       bar: 'bg-blue-500 dark:bg-blue-400',       icon: Package },
-    { label: 'Sắp hết hàng',  value: apiStats.lowStock.toString(),       color: 'text-amber-600 dark:text-amber-400',     bar: 'bg-amber-500 dark:bg-amber-400',     icon: AlertCircle },
-    { label: 'Hết hàng',      value: apiStats.outOfStock.toString(),      color: 'text-red-600 dark:text-red-400',         bar: 'bg-red-500 dark:bg-red-400',         icon: XCircle },
-    { label: 'Giá trị kho',   value: formatVND(apiStats.inventoryValue),  color: 'text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500 dark:bg-emerald-400', icon: TrendingUp },
+    { key: 'total',      label: 'Tổng sản phẩm', value: apiStats.total.toString(),          color: 'text-blue-600 dark:text-blue-400',       bar: 'bg-blue-500 dark:bg-blue-400',       icon: Package },
+    { key: 'lowStock',   label: 'Sắp hết hàng',  value: apiStats.lowStock.toString(),       color: 'text-amber-600 dark:text-amber-400',     bar: 'bg-amber-500 dark:bg-amber-400',     icon: AlertCircle },
+    { key: 'outOfStock', label: 'Hết hàng',      value: apiStats.outOfStock.toString(),      color: 'text-red-600 dark:text-red-400',         bar: 'bg-red-500 dark:bg-red-400',         icon: XCircle },
+    { key: 'inventoryValue', label: 'Giá trị kho', value: formatVND(apiStats.inventoryValue),  color: 'text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500 dark:bg-emerald-400', icon: TrendingUp },
   ], [apiStats])
+
+  const toggleOutOfStockFilter = () => {
+    setOutOfStockOnly((prev) => {
+      const next = !prev
+      if (!next) setWarehouseFilter(null)
+      return next
+    })
+    setPage(1)
+  }
+
+  const toggleWarehouseFilter = (w: Warehouse) => {
+    setWarehouseFilter((prev) => (prev === w ? null : w))
+    setPage(1)
+  }
 
   const openCreate = () => { setEditingProduct(null); setFormOpen(true) }
   const openEdit   = (p: Product) => { setEditingProduct(p); setFormOpen(true) }
@@ -193,21 +213,33 @@ export default function ProductsPage() {
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {loading && apiStats.total === 0
           ? [...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)
-          : stats.map((s) => (
-              <Card key={s.label} size="sm">
-                <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground">{s.label}</p>
-                  <div className="mt-1 flex items-end justify-between">
-                    <p className={cn('text-xl font-bold', s.color)}>{s.value}</p>
-                    <span className={cn('mb-1 h-1 w-6 rounded-full', s.bar)} />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          : stats.map((s) => {
+              const clickable = s.key === 'outOfStock'
+              const active    = clickable && outOfStockOnly
+              return (
+                <Card
+                  key={s.label}
+                  size="sm"
+                  onClick={clickable ? toggleOutOfStockFilter : undefined}
+                  className={cn(
+                    clickable && 'cursor-pointer transition-colors hover:bg-muted/40',
+                    active && 'ring-2 ring-red-500/60 bg-red-500/5',
+                  )}
+                >
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground">{s.label}</p>
+                    <div className="mt-1 flex items-end justify-between">
+                      <p className={cn('text-xl font-bold', s.color)}>{s.value}</p>
+                      <span className={cn('mb-1 h-1 w-6 rounded-full', s.bar)} />
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
       </div>
 
       {/* ── Search ── */}
-      <div className="mb-4 flex flex-wrap gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="relative min-w-56 flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -221,8 +253,30 @@ export default function ProductsPage() {
             {allBrands.map((b) => <option key={b} value={b} />)}
           </datalist>
         </div>
-        {search && (
-          <Button variant="ghost" size="sm" onClick={() => setSearch('')}>
+
+        {outOfStockOnly && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">Kho:</span>
+            {(Object.keys(WAREHOUSES) as Warehouse[]).map((w) => (
+              <Button
+                key={w}
+                type="button"
+                size="sm"
+                variant={warehouseFilter === w ? 'default' : 'outline'}
+                onClick={() => toggleWarehouseFilter(w)}
+              >
+                {WAREHOUSES[w]}
+              </Button>
+            ))}
+          </div>
+        )}
+
+        {(search || outOfStockOnly) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setSearch(''); setOutOfStockOnly(false); setWarehouseFilter(null) }}
+          >
             <XCircle className="h-4 w-4" /> Xóa bộ lọc
           </Button>
         )}

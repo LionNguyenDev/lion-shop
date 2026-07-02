@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProducts, createProduct } from '@/lib/services/productService'
+import { WAREHOUSES, type Warehouse } from '@/lib/types'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl
-    const search = searchParams.get('search') || undefined
-    const brand  = searchParams.get('brand')  || undefined
-    const page   = Math.max(1, parseInt(searchParams.get('page')  || '1',  10))
-    const limit  = Math.min(500, Math.max(1, parseInt(searchParams.get('limit') || '10', 10)))
+    const search     = searchParams.get('search') || undefined
+    const brand      = searchParams.get('brand')  || undefined
+    const page       = Math.max(1, parseInt(searchParams.get('page')  || '1',  10))
+    const limit      = Math.min(500, Math.max(1, parseInt(searchParams.get('limit') || '10', 10)))
+    const outOfStock = searchParams.get('outOfStock') === '1'
+    const warehouseParam = searchParams.get('warehouse') || undefined
+    const warehouse  = warehouseParam && warehouseParam in WAREHOUSES ? warehouseParam as Warehouse : undefined
 
-    const result = await getProducts({ search, brand, page, limit })
+    const result = await getProducts({ search, brand, page, limit, outOfStock, warehouse })
     return NextResponse.json(result)
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
