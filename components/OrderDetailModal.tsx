@@ -26,6 +26,15 @@ const statusBadgeClass: Record<string, string> = {
 
 export default function OrderDetailModal({ order, onClose }: OrderDetailModalProps) {
   const [showProfit, setShowProfit] = useState(false)
+  const [visibleOriginalPrices, setVisibleOriginalPrices] = useState<Set<number>>(new Set())
+
+  const toggleOriginalPrice = (idx: number) => {
+    setVisibleOriginalPrices((prev) => {
+      const next = new Set(prev)
+      next.has(idx) ? next.delete(idx) : next.add(idx)
+      return next
+    })
+  }
 
   if (!order) return null
 
@@ -92,30 +101,46 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
                 Sản phẩm
               </p>
             </div>
-            {order.items.map((item, idx) => (
-              <div
-                key={idx}
-                className={cn(
-                  'flex items-center justify-between px-3 py-2 text-sm',
-                  idx !== order.items.length - 1 && 'border-b'
-                )}
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium truncate">{item.name}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    ×{item.quantity} · {formatVND(item.price)}/cái
-                  </p>
-                </div>
-                <div className="ml-4 text-right shrink-0">
-                  <p className="font-semibold">{formatVND(item.price * item.quantity)}</p>
-                  {item.originalPrice && item.originalPrice !== item.price && (
-                    <p className="text-[11px] text-muted-foreground line-through">
-                      {formatVND(item.originalPrice * item.quantity)}
-                    </p>
+            {order.items.map((item, idx) => {
+              const hasOriginal = !!item.originalPrice && item.originalPrice !== item.price
+              const isVisible   = visibleOriginalPrices.has(idx)
+              return (
+                <div
+                  key={idx}
+                  className={cn(
+                    'flex items-center justify-between px-3 py-2 text-sm',
+                    idx !== order.items.length - 1 && 'border-b'
                   )}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{item.name}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      ×{item.quantity} · {formatVND(item.price)}/cái
+                    </p>
+                  </div>
+                  <div className="ml-4 text-right shrink-0">
+                    <div className="flex items-center justify-end gap-1.5">
+                      {hasOriginal && (
+                        <button
+                          type="button"
+                          onClick={() => toggleOriginalPrice(idx)}
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          aria-label={isVisible ? 'Ẩn giá gốc' : 'Xem giá gốc'}
+                        >
+                          {isVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      )}
+                      <p className="font-semibold">{formatVND(item.price * item.quantity)}</p>
+                    </div>
+                    {hasOriginal && isVisible && (
+                      <p className="text-[11px] text-muted-foreground line-through">
+                        {formatVND(item.originalPrice * item.quantity)}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Tóm tắt tài chính */}
