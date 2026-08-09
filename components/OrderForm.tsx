@@ -2,6 +2,7 @@
 
 import { MapPin, Phone, Plus, ShoppingCart, Trash2, User } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { formatVND } from '@/lib/format'
 import { Customer, Order, Product, statusOrders, WAREHOUSES, Warehouse } from '@/lib/types'
 import VndInput from './VndInput'
@@ -389,15 +390,19 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
         <Button type="submit" disabled={selectedItems.length === 0} className="flex-1">
           Tạo đơn hàng
         </Button>
+        <Button type="button" variant="outline" onClick={addItem}>
+          <Plus /> Thêm sản phẩm
+        </Button>
         {onCancel && (
           <Button type="button" variant="outline" onClick={onCancel}>Hủy</Button>
         )}
       </div>
 
-      {/* ── Confirm popup ── */}
-      {confirmOpen && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center rounded-lg bg-background/80 backdrop-blur-sm">
-          <div className="mx-4 w-full max-w-xs rounded-2xl border bg-card p-6 shadow-2xl space-y-4">
+      {/* ── Confirm popup (portal ra body để luôn nằm giữa màn hình,
+             không bị kẹt ở đầu vùng cuộn của dialog khi đơn nhiều sản phẩm) ── */}
+      {confirmOpen && createPortal(
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="w-full max-w-xs rounded-2xl border bg-card p-6 shadow-2xl space-y-4">
             <div className="flex flex-col items-center gap-2 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
                 <ShoppingCart className="h-6 w-6 text-primary" />
@@ -431,7 +436,8 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </form>
   )
