@@ -66,6 +66,7 @@ export default function OrdersPage() {
   const [totalPages, setTotalPages]       = useState(1)
   const [loading, setLoading]             = useState(true)
   const [createModal, setCreateModal]     = useState<CreateModal>('closed')
+  const [closeCreateConfirmOpen, setCloseCreateConfirmOpen] = useState(false)
   const [createdOrder, setCreatedOrder]   = useState<Order | null>(null)
   const [showCreatedProfit, setShowCreatedProfit] = useState(false)
   const [editingOrder, setEditingOrder]   = useState<Order | null>(null)
@@ -355,13 +356,19 @@ export default function OrdersPage() {
       {/* ── Create / Success dialog ── */}
       <Dialog
         open={createModal !== 'closed'}
-        onOpenChange={(open) => !open && setCreateModal('closed')}
+        disablePointerDismissal
+        onOpenChange={(open, eventDetails) => {
+          if (open) return
+          if (eventDetails.reason === 'outside-press') return
+          if (createModal === 'success') { setCreateModal('closed'); return }
+          setCloseCreateConfirmOpen(true)
+        }}
       >
         <DialogContent className={cn('max-h-[90vh] overflow-y-auto', createModal === 'form' ? 'sm:max-w-2xl' : 'sm:max-w-md')}>
           {createModal === 'form' && (
             <>
               <DialogHeader><DialogTitle>Đơn hàng mới</DialogTitle></DialogHeader>
-              <OrderForm onSuccess={handleCreateSuccess} onCancel={() => setCreateModal('closed')} />
+              <OrderForm onSuccess={handleCreateSuccess} onCancel={() => setCloseCreateConfirmOpen(true)} />
             </>
           )}
 
@@ -445,6 +452,27 @@ export default function OrdersPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ── Confirm đóng form tạo đơn ── */}
+      <AlertDialog open={closeCreateConfirmOpen} onOpenChange={(open) => !open && setCloseCreateConfirmOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hủy tạo đơn hàng?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Thông tin đơn hàng đang nhập sẽ không được lưu.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCloseCreateConfirmOpen(false)}>Tiếp tục nhập</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => { setCloseCreateConfirmOpen(false); setCreateModal('closed') }}
+            >
+              Đóng lại
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ── Edit ── */}
       <OrderEditModal order={editingOrder} onClose={() => setEditingOrder(null)} onSaved={handleEditSaved} />

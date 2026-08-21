@@ -56,6 +56,7 @@ export default function ProductsPage() {
   const [selectedIds, setSelectedIds]             = useState<Set<string>>(new Set())
   const [selectedProductsCache, setSelectedProductsCache] = useState<Map<string, Product>>(new Map())
   const [orderOpen, setOrderOpen]                 = useState(false)
+  const [closeOrderConfirmOpen, setCloseOrderConfirmOpen] = useState(false)
   const [createdOrder, setCreatedOrder]           = useState<Order | null>(null)
   const [showCreatedProfit, setShowCreatedProfit] = useState(false)
   const router = useRouter()
@@ -345,7 +346,15 @@ export default function ProductsPage() {
       </Dialog>
 
       {/* ── Order from selection dialog ── */}
-      <Dialog open={orderOpen} onOpenChange={(open) => !open && setOrderOpen(false)}>
+      <Dialog
+        open={orderOpen}
+        disablePointerDismissal
+        onOpenChange={(open, eventDetails) => {
+          if (open) return
+          if (eventDetails.reason === 'outside-press') return
+          setCloseOrderConfirmOpen(true)
+        }}
+      >
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Tạo đơn hàng</DialogTitle>
@@ -363,10 +372,31 @@ export default function ProductsPage() {
               setShowCreatedProfit(false)
               setCreatedOrder(order)
             }}
-            onCancel={() => setOrderOpen(false)}
+            onCancel={() => setCloseOrderConfirmOpen(true)}
           />
         </DialogContent>
       </Dialog>
+
+      {/* ── Confirm đóng form tạo đơn ── */}
+      <AlertDialog open={closeOrderConfirmOpen} onOpenChange={(open) => !open && setCloseOrderConfirmOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hủy tạo đơn hàng?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Thông tin đơn hàng đang nhập sẽ không được lưu.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCloseOrderConfirmOpen(false)}>Tiếp tục nhập</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => { setCloseOrderConfirmOpen(false); setOrderOpen(false) }}
+            >
+              Đóng lại
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ── Order success preview ── */}
       <Dialog
