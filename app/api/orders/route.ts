@@ -11,8 +11,9 @@ export async function GET(request: NextRequest) {
     const to     = searchParams.get('to')     || undefined
     const page   = Math.max(1, parseInt(searchParams.get('page')  || '1',  10))
     const limit  = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '10', 10)))
+    const deleted = searchParams.get('deleted') === '1' // thùng rác
 
-    const result = await getOrders({ search, status, from, to, page, limit })
+    const result = await getOrders({ search, status, from, to, page, limit, deleted })
     return NextResponse.json(result)
   } catch {
     return NextResponse.json(

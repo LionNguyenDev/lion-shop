@@ -1,5 +1,5 @@
 import mongoose, { type Document, type Model, Schema } from 'mongoose'
-import { statusOrders, WAREHOUSES } from '@/lib/types'
+import { statusOrders, TRASH_RETENTION_DAYS, WAREHOUSES } from '@/lib/types'
 export interface IOrderItem {
   product: mongoose.Types.ObjectId
   name: string
@@ -20,6 +20,8 @@ export interface IOrder extends Document {
   address: string
   createdAt: Date
   updatedAt: Date
+  deletedAt: Date | null
+  restoredAt: Date | null
 }
 
 const OrderItemSchema: Schema = new Schema({
@@ -49,14 +51,35 @@ const OrderSchema: Schema = new Schema(
       enum: Object.values(statusOrders),
       default: statusOrders.UNPAID,
     },
+    // Thùng rác: null = đơn đang hoạt động, Date = thời điểm bị xóa mềm
+    deletedAt: { type: Date, default: null },
+    // Lần gần nhất đơn được khôi phục từ thùng rác (để đánh dấu trong danh sách)
+    restoredAt: { type: Date, default: null },
   },
   { timestamps: true },
 )
 
-OrderSchema.index({ createdAt: -1 })
-OrderSchema.index({ status: 1, createdAt: -1 })
+// Mọi truy vấn đơn hàng đều lọc theo deletedAt trước → đặt nó lên đầu index
+OrderSchema.index({ deletedAt: 1, createdAt: -1 })
+OrderSchema.index({ deletedAt: 1, status: 1, createdAt: -1 })
 
-const Order: Model<IOrder> =
-  (mongoose.models.Order as Model<IOrder>) ?? mongoose.model<IOrder>('Order', OrderSchema)
+// TTL: MongoDB tự xóa vĩnh viễn đơn trong thùng rác sau TRASH_RETENTION_DAYS ngày.
+// partialFilterExpression giữ index chỉ gồm các đơn đã xóa (deletedAt là Date),
+// nên đơn đang hoạt động (deletedAt: null) không bao giờ bị TTL đụng tới.
+OrderSchema.index(
+  { deletedAt: 1 },
+  {
+    expireAfterSeconds: TRASH_RETENTION_DAYS * 24 * 60 * 60,
+    partialFilterExpression: { deletedAt: { $type: 'date' } },
+    name: 'deletedAt_ttl',
+  },
+)
+
+// Xóa model đã cache để thay đổi schema (deletedAt) có hiệu lực mà không phải
+// restart dev server — nếu không, mongoose strict mode sẽ âm thầm bỏ qua deletedAt.
+if (mongoose.models.Order) {
+  mongoose.deleteModel('Order')
+}
+const Order: Model<IOrder> = mongoose.model<IOrder>('Order', OrderSchema)
 
 export default Order

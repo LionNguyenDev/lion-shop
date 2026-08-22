@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pagination } from '@/components/ui/pagination'
 import { toast } from 'sonner'
@@ -10,7 +11,7 @@ import OrderForm from '@/components/OrderForm'
 import OrderEditModal from '@/components/OrderEditModal'
 import OrderDetailModal from '@/components/OrderDetailModal'
 import { formatProfit, formatVND } from '@/lib/format'
-import { Order, statusOrders, statusOrdersVN } from '@/lib/types'
+import { Order, statusOrders, statusOrdersVN, TRASH_RETENTION_DAYS } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -164,7 +165,7 @@ export default function OrdersPage() {
       }
       setSelectedIds((prev) => { const n = new Set(prev); n.delete(deleteTarget._id); return n })
       setDeleteTarget(null)
-      toast.success('Đã xóa đơn hàng', { id: tid })
+      toast.success('Đã chuyển đơn hàng vào thùng rác', { id: tid })
 
       const newTotalPages = Math.max(1, Math.ceil((total - 1) / PAGE_SIZE))
       if (page > newTotalPages) setPage(newTotalPages) // effect refetches
@@ -186,7 +187,7 @@ export default function OrdersPage() {
       )
       setSelectedIds(new Set())
       setBulkDeleteOpen(false)
-      toast.success(`Đã xóa ${count} đơn hàng`, { id: tid })
+      toast.success(`Đã chuyển ${count} đơn hàng vào thùng rác`, { id: tid })
 
       const newTotalPages = Math.max(1, Math.ceil((total - count) / PAGE_SIZE))
       if (page > newTotalPages) setPage(newTotalPages) // effect refetches
@@ -213,6 +214,9 @@ export default function OrdersPage() {
         <div className="flex gap-2">
           <Button onClick={() => setCreateModal('form')}>
             <Plus /> Thêm đơn hàng
+          </Button>
+          <Button variant="outline" render={<Link href="/admin/orders/trash" />}>
+            <Trash2 /> Thùng rác
           </Button>
           <Button variant="outline">
             <SlidersHorizontal /> Thao tác khác
@@ -484,7 +488,8 @@ export default function OrdersPage() {
             <AlertDialogTitle>Xóa đơn hàng?</AlertDialogTitle>
             <AlertDialogDescription>
               Đơn hàng <span className="font-mono font-semibold text-foreground">#{deleteTarget?._id.slice(-8).toUpperCase()}</span> của{' '}
-              <span className="font-medium text-foreground">{deleteTarget?.name}</span> sẽ bị xóa vĩnh viễn.
+              <span className="font-medium text-foreground">{deleteTarget?.name}</span> sẽ được chuyển vào thùng rác
+              và tự động xóa vĩnh viễn sau {TRASH_RETENTION_DAYS} ngày. Số lượng sản phẩm trong đơn được hoàn lại kho ngay.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -502,7 +507,8 @@ export default function OrdersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa {selectedIds.size} đơn hàng?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tất cả {selectedIds.size} đơn hàng đã chọn sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.
+              Tất cả {selectedIds.size} đơn hàng đã chọn sẽ được chuyển vào thùng rác và tự động xóa vĩnh viễn
+              sau {TRASH_RETENTION_DAYS} ngày. Số lượng sản phẩm trong các đơn được hoàn lại kho ngay.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

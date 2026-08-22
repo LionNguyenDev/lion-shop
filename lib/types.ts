@@ -6,6 +6,9 @@ export const WAREHOUSES = {
 
 export type Warehouse = keyof typeof WAREHOUSES
 
+/** Số ngày đơn hàng nằm trong thùng rác trước khi MongoDB TTL xóa vĩnh viễn. */
+export const TRASH_RETENTION_DAYS = 10
+
 export interface Product {
   _id: string
   name: string
@@ -54,6 +57,28 @@ export interface Order {
   address: string
   createdAt: string
   updatedAt: string
+  /** Thời điểm chuyển vào thùng rác; null/undefined = đơn đang hoạt động. */
+  deletedAt?: string | null
+  /** Thời điểm khôi phục gần nhất từ thùng rác; có giá trị = đơn từng bị xóa. */
+  restoredAt?: string | null
+}
+
+/** Một dòng thiếu hàng khi khôi phục đơn từ thùng rác. */
+export interface StockShortage {
+  productId: string
+  name: string
+  warehouse: Warehouse
+  required: number
+  available: number
+  missing: number
+}
+
+/** Một dòng kho đã được nhập bù khi khôi phục với force. */
+export interface StockAdjustment {
+  productId: string
+  name: string
+  warehouse: Warehouse
+  added: number
 }
 
 export interface Customer {

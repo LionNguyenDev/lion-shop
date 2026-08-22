@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, RotateCcw } from 'lucide-react'
 import { formatVND, formatProfit } from '@/lib/format'
 import { Order, statusOrdersVN } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -58,12 +58,23 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
 
           {/* Trạng thái + Ngày tạo */}
           <div className="flex items-center justify-between">
-            <Badge
-              variant="outline"
-              className={cn('text-xs font-bold', statusBadgeClass[order.status] ?? 'bg-slate-100 text-slate-600')}
-            >
-              {statusOrdersVN[order.status] || order.status}
-            </Badge>
+            <div className="flex items-center gap-1.5">
+              <Badge
+                variant="outline"
+                className={cn('text-xs font-bold', statusBadgeClass[order.status] ?? 'bg-slate-100 text-slate-600')}
+              >
+                {statusOrdersVN[order.status] || order.status}
+              </Badge>
+              {order.restoredAt && (
+                <Badge
+                  variant="outline"
+                  title={`Khôi phục từ thùng rác lúc ${new Date(order.restoredAt).toLocaleString('vi-VN')}`}
+                  className="gap-1 text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30"
+                >
+                  <RotateCcw className="h-3 w-3" /> Đã khôi phục
+                </Badge>
+              )}
+            </div>
             <span className="text-xs text-muted-foreground">
               {new Date(order.createdAt).toLocaleString('vi-VN')}
             </span>

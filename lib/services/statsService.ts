@@ -164,6 +164,7 @@ export async function getStats(range: Range): Promise<StatsResult> {
   }>([
     {
       $match: {
+        deletedAt: null, // bỏ qua đơn trong thùng rác
         createdAt: { $gte: w.prevStart, $lt: w.end },
       },
     },
@@ -277,7 +278,7 @@ export async function getStatsByDateRange(fromISO: string, toISO: string): Promi
   const projectStage = { _id: 0, bucket: '$_id', orders: 1, revenue: 1, profit: 1 }
 
   const [res] = await Order.aggregate<{ current: BucketRow[]; previous: BucketRow[] }>([
-    { $match: { createdAt: { $gte: prevStart, $lt: end } } },
+    { $match: { deletedAt: null, createdAt: { $gte: prevStart, $lt: end } } }, // bỏ qua đơn trong thùng rác
     {
       $facet: {
         current: [

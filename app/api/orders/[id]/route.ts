@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
-import { deleteOrder, updateOrder } from '@/lib/services/orderService'
+import { NextResponse, type NextRequest } from 'next/server'
+import { purgeOrder, trashOrder, updateOrder } from '@/lib/services/orderService'
 
 interface Params {
   params: Promise<{ id: string }>
@@ -37,13 +37,21 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 }
 
-export async function DELETE(_request: Request, { params }: Params) {
+/**
+ * Mặc định: xóa mềm (hoàn kho + chuyển vào thùng rác).
+ * `?permanent=1`: xóa vĩnh viễn — chỉ hợp lệ với đơn đã nằm trong thùng rác.
+ */
+export async function DELETE(request: NextRequest, { params }: Params) {
   try {
     const { id } = await params
+    const permanent = request.nextUrl.searchParams.get('permanent') === '1'
 
-    const deleted = await deleteOrder(id)
-    if (!deleted) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    const order = permanent ? await purgeOrder(id) : await trashOrder(id)
+    if (!order) {
+      return NextResponse.json(
+        { error: permanent ? 'Đơn hàng không nằm trong thùng rác' : 'Order not found' },
+        { status: 404 },
+      )
     }
 
     return NextResponse.json({ success: true })

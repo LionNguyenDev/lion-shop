@@ -1,14 +1,63 @@
 import mongoose from 'mongoose'
 import dbConnect from '@/lib/db'
-import Order from '@/models/Order'
-import Product from '@/models/Product'
-import { statusOrders, Warehouse } from '../types'
+import Order, { type IOrder, type IOrderItem } from '@/models/Order'
+import Product, { type IProduct } from '@/models/Product'
+import { statusOrders, Warehouse, type StockAdjustment, type StockShortage } from '../types'
 import { upsertCustomer } from '@/lib/services/customerService'
 
 const warehouseField: Record<Warehouse, 'stockHN' | 'stockQB' | 'stockSG'> = {
   HN: 'stockHN',
   QB: 'stockQB',
   SG: 'stockSG',
+}
+
+/** Một đơn có nhiều dòng sản phẩm, và cùng một sản phẩm có thể nằm ở nhiều kho
+ *  khác nhau (hoặc bị tách thành nhiều dòng cùng kho). Gộp lại theo cặp
+ *  (sản phẩm, kho) để cộng/trừ kho đúng một lần với đúng tổng số lượng. */
+interface ItemGroup {
+  productId: string
+  warehouse: Warehouse
+  name: string
+  quantity: number
+}
+
+function groupItemsByProductWarehouse(
+  items: IOrderItem[],
+  defaultWarehouse: Warehouse,
+): ItemGroup[] {
+  const groups = new Map<string, ItemGroup>()
+  for (const item of items) {
+    const warehouse = (item.warehouse as Warehouse) ?? defaultWarehouse
+    const productId = String(item.product)
+    const key = `${productId}:${warehouse}`
+    const existing = groups.get(key)
+    if (existing) existing.quantity += item.quantity
+    else groups.set(key, { productId, warehouse, name: item.name, quantity: item.quantity })
+  }
+  return [...groups.values()]
+}
+
+/** Nạp product một lần duy nhất cho mỗi id trong cùng transaction — cùng một
+ *  sản phẩm ở hai kho phải dùng chung một document, nếu không lần save sau sẽ
+ *  ghi đè thay đổi của lần trước. */
+function makeProductLoader(session: mongoose.ClientSession) {
+  const cache = new Map<string, IProduct | null>()
+  return async (productId: string): Promise<IProduct | null> => {
+    if (cache.has(productId)) return cache.get(productId) ?? null
+    const product = await Product.findById(productId).session(session)
+    cache.set(productId, product)
+    return product
+  }
+}
+
+/** Lỗi khôi phục do kho không đủ hàng — kèm chi tiết từng sản phẩm để UI dựng dialog. */
+export class InsufficientStockError extends Error {
+  shortages: StockShortage[]
+  constructor(shortages: StockShortage[]) {
+    super('INSUFFICIENT_STOCK')
+    this.name = 'InsufficientStockError'
+    this.shortages = shortages
+  }
 }
 
 const TZ_OFFSET_MS = 7 * 60 * 60 * 1000 // Asia/Ho_Chi_Minh
@@ -28,6 +77,7 @@ export interface OrderQuery {
   to?: string     // YYYY-MM-DD (inclusive)
   page?: number
   limit?: number
+  deleted?: boolean // true = chỉ lấy đơn trong thùng rác
 }
 
 export interface OrdersResult {
@@ -45,10 +95,13 @@ export async function getOrders({
   to,
   page = 1,
   limit = 10,
+  deleted = false,
 }: OrderQuery = {}): Promise<OrdersResult> {
   await dbConnect()
 
-  const filter: Record<string, unknown> = {}
+  // Đơn trong thùng rác tách hẳn khỏi danh sách thường
+  const trashFilter = deleted ? { $ne: null } : null
+  const filter: Record<string, unknown> = { deletedAt: trashFilter }
 
   if (search) {
     const rx = { $regex: search, $options: 'i' }
@@ -74,10 +127,16 @@ export async function getOrders({
 
   const skip = (page - 1) * limit
 
+  // Thùng rác sắp xếp theo thời điểm xóa (mới xóa lên đầu)
+  const sort: Record<string, 1 | -1> = deleted
+    ? { deletedAt: -1, _id: -1 }
+    : { createdAt: -1, _id: -1 }
+
   const [orders, total, statsResult] = await Promise.all([
-    Order.find(filter).sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit).lean(),
+    Order.find(filter).sort(sort).skip(skip).limit(limit).lean(),
     Order.countDocuments(filter),
     Order.aggregate<{ _id: string; count: number; revenue: number }>([
+      { $match: { deletedAt: trashFilter } },
       {
         $group: {
           _id: '$status',
@@ -203,16 +262,20 @@ export async function updateOrder(
     if (v !== undefined) update[k] = v
   }
 
+  // Đơn trong thùng rác không được sửa (kho của nó đã được hoàn lại)
   if (!items) {
-    if (Object.keys(update).length === 0) return Order.findById(id)
-    return Order.findByIdAndUpdate(id, update, { new: true, runValidators: true })
+    if (Object.keys(update).length === 0) return Order.findOne({ _id: id, deletedAt: null })
+    return Order.findOneAndUpdate({ _id: id, deletedAt: null }, update, {
+      new: true,
+      runValidators: true,
+    })
   }
 
   const session = await mongoose.startSession()
   session.startTransaction()
   try {
     const existing = await Order.findById(id).session(session)
-    if (!existing) { await session.abortTransaction(); return null }
+    if (!existing || existing.deletedAt) { await session.abortTransaction(); return null }
 
     const defaultWarehouse = (existing.warehouse as Warehouse) ?? 'HN'
 
@@ -290,7 +353,12 @@ export async function updateOrder(
   }
 }
 
-export async function deleteOrder(id: string) {
+/**
+ * Xóa mềm: hoàn kho ngay và chuyển đơn vào thùng rác.
+ * MongoDB TTL sẽ tự xóa vĩnh viễn sau TRASH_RETENTION_DAYS ngày mà không cần
+ * chạy thêm logic nào — vì kho đã được hoàn ở đây rồi.
+ */
+export async function trashOrder(id: string) {
   await dbConnect()
   const session = await mongoose.startSession()
   session.startTransaction()
@@ -302,23 +370,150 @@ export async function deleteOrder(id: string) {
       return null
     }
 
-    for (const item of order.items) {
-      const wh = (item.warehouse as Warehouse) ?? (order.warehouse as Warehouse) ?? 'HN'
-      const field = warehouseField[wh]
-      const product = await Product.findById(item.product).session(session)
-      if (!product) continue
-
-      ;(product[field] as number) = ((product[field] ?? 0) as number) + item.quantity
-      await product.save({ session })
+    // Đã ở trong thùng rác → không hoàn kho lần hai (chống double-click / retry)
+    if (order.deletedAt) {
+      await session.abortTransaction()
+      return order
     }
 
-    await Order.findByIdAndDelete(id).session(session)
+    const loadProduct = makeProductLoader(session)
+    const groups = groupItemsByProductWarehouse(
+      order.items,
+      (order.warehouse as Warehouse) ?? 'HN',
+    )
+
+    const touched: IProduct[] = []
+    for (const group of groups) {
+      const product = await loadProduct(group.productId)
+      // Sản phẩm đã bị xóa khỏi hệ thống thì bỏ qua, không chặn việc xóa đơn
+      if (!product) continue
+
+      const field = warehouseField[group.warehouse]
+      ;(product[field] as number) = ((product[field] ?? 0) as number) + group.quantity
+      if (!touched.includes(product)) touched.push(product)
+    }
+    for (const product of touched) await product.save({ session })
+
+    order.deletedAt = new Date()
+    await order.save({ session })
     await session.commitTransaction()
     return order
   } catch (error) {
-    await session.abortTransaction()
+    if (session.inTransaction()) await session.abortTransaction()
     throw error
   } finally {
     session.endSession()
   }
+}
+
+/**
+ * Khôi phục đơn từ thùng rác: trừ lại kho đúng như lúc tạo đơn.
+ *
+ * Không đủ hàng → ném InsufficientStockError kèm chi tiết từng sản phẩm.
+ * Với `force: true`, phần thiếu được nhập bù (kho bị kẹp sàn ở 0) và số lượng
+ * bù được tính lại ngay trong transaction, không lấy theo số client gửi lên —
+ * tồn kho có thể đã đổi từ lúc dialog hiện ra.
+ */
+export async function restoreOrder(
+  id: string,
+  { force = false }: { force?: boolean } = {},
+): Promise<{ order: IOrder; adjustments: StockAdjustment[] } | null> {
+  await dbConnect()
+  const session = await mongoose.startSession()
+  session.startTransaction()
+
+  try {
+    const order = await Order.findById(id).session(session)
+    if (!order) {
+      await session.abortTransaction()
+      return null
+    }
+
+    // Đơn đang hoạt động → không trừ kho lần hai
+    if (!order.deletedAt) {
+      await session.abortTransaction()
+      return { order, adjustments: [] }
+    }
+
+    const loadProduct = makeProductLoader(session)
+    const groups = groupItemsByProductWarehouse(
+      order.items,
+      (order.warehouse as Warehouse) ?? 'HN',
+    )
+
+    // Lượt 1: kiểm tra toàn bộ trước khi động vào kho — all-or-nothing
+    const shortages: StockShortage[] = []
+    const adjustments: StockAdjustment[] = []
+    const plan: { product: IProduct; field: 'stockHN' | 'stockQB' | 'stockSG'; quantity: number }[] = []
+
+    for (const group of groups) {
+      const product = await loadProduct(group.productId)
+      if (!product) {
+        throw new Error(
+          `Sản phẩm "${group.name}" không còn tồn tại, không thể khôi phục đơn hàng`,
+        )
+      }
+
+      const field = warehouseField[group.warehouse]
+      const available = (product[field] ?? 0) as number
+
+      if (available < group.quantity) {
+        const missing = group.quantity - available
+        if (force) {
+          adjustments.push({
+            productId: group.productId,
+            name: product.name,
+            warehouse: group.warehouse,
+            added: missing,
+          })
+        } else {
+          shortages.push({
+            productId: group.productId,
+            name: product.name,
+            warehouse: group.warehouse,
+            required: group.quantity,
+            available,
+            missing,
+          })
+        }
+      }
+
+      plan.push({ product, field, quantity: group.quantity })
+    }
+
+    if (shortages.length > 0) {
+      await session.abortTransaction()
+      throw new InsufficientStockError(shortages)
+    }
+
+    // Lượt 2: trừ kho. Math.max(0, …) tương đương "nhập bù phần thiếu rồi trừ",
+    // và đảm bảo tồn kho không bao giờ âm.
+    const touched: IProduct[] = []
+    for (const { product, field, quantity } of plan) {
+      const available = (product[field] ?? 0) as number
+      ;(product[field] as number) = Math.max(0, available - quantity)
+      if (!touched.includes(product)) touched.push(product)
+    }
+    for (const product of touched) await product.save({ session })
+
+    order.deletedAt = null
+    order.restoredAt = new Date()
+    await order.save({ session })
+    await session.commitTransaction()
+    return { order, adjustments }
+  } catch (error) {
+    if (session.inTransaction()) await session.abortTransaction()
+    throw error
+  } finally {
+    session.endSession()
+  }
+}
+
+/**
+ * Xóa vĩnh viễn ngay lập tức. Chỉ áp dụng cho đơn đã ở trong thùng rác —
+ * kho đã được hoàn lúc xóa mềm nên ở đây không đụng gì tới tồn kho.
+ */
+export async function purgeOrder(id: string) {
+  await dbConnect()
+  return Order.findOneAndDelete({ _id: id, deletedAt: { $ne: null } })
 }

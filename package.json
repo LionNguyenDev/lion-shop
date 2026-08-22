@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "migrate:statuses": "node scripts/migrate-statuses.mjs",
+    "migrate:trash": "node scripts/migrate-trash.mjs",
     "import:products:parse": "python scripts/parse-products-xlsx.py",
     "import:products": "node scripts/import-products.mjs",
     "backup": "bash scripts/backup.sh",
