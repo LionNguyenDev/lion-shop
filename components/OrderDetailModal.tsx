@@ -19,6 +19,9 @@ interface OrderDetailModalProps {
   onClose: () => void
 }
 
+/** Từ ngần này sản phẩm trở lên thì danh sách trong modal chia làm 2 cột. */
+const ITEMS_TWO_COLUMN_THRESHOLD = 10
+
 const statusBadgeClass: Record<string, string> = {
   'Paid':   'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
   'Unpaid': 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30',
@@ -38,10 +41,22 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
 
   if (!order) return null
 
+  // Đơn nhiều sản phẩm: chia đôi thành 2 cột thay vì một cột dài phải cuộn.
+  // Chia theo cột (1..n/2 bên trái) để đọc dọc tự nhiên, không phải zigzag.
+  const twoColumns = order.items.length > ITEMS_TWO_COLUMN_THRESHOLD
+  const indexedItems = order.items.map((item, idx) => ({ item, idx }))
+  const half = Math.ceil(indexedItems.length / 2)
+  const itemColumns = twoColumns
+    ? [indexedItems.slice(0, half), indexedItems.slice(half)]
+    : [indexedItems]
+
   return (
     <Dialog open={!!order} onOpenChange={(open) => !open && onClose()}>
       {/* flex-col + p-0 để tự kiểm soát padding; max-h dvh để scroll chỉ khi màn hình quá bé */}
-      <DialogContent className="flex flex-col gap-0 p-0 sm:max-w-lg max-h-[90dvh]">
+      <DialogContent className={cn(
+        'flex flex-col gap-0 p-0 max-h-[90dvh]',
+        twoColumns ? 'sm:max-w-3xl' : 'sm:max-w-lg',
+      )}>
 
         {/* ── Header cố định ── */}
         <DialogHeader className="px-5 pt-5 pb-3 border-b shrink-0">
@@ -105,53 +120,60 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
             </div>
           </div>
 
-          {/* Sản phẩm – compact table */}
+          {/* Sản phẩm – compact table (2 cột khi đơn có nhiều sản phẩm) */}
           <div className="rounded-lg border overflow-hidden">
-            <div className="px-3 py-1.5 bg-muted/30 border-b">
+            <div className="flex items-center justify-between px-3 py-1.5 bg-muted/30 border-b">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Sản phẩm
               </p>
+              <p className="text-[10px] font-semibold text-muted-foreground tabular-nums">
+                {order.items.length} loại
+              </p>
             </div>
-            {order.items.map((item, idx) => {
-              const hasOriginal = !!item.originalPrice && item.originalPrice !== item.price
-              const isVisible   = visibleOriginalPrices.has(idx)
-              return (
-                <div
-                  key={idx}
-                  className={cn(
-                    'flex items-center justify-between px-3 py-2 text-sm',
-                    idx !== order.items.length - 1 && 'border-b'
-                  )}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate">{item.name}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      ×{item.quantity} · {formatVND(item.price)}/cái
-                    </p>
-                  </div>
-                  <div className="ml-4 text-right shrink-0">
-                    <div className="flex items-center justify-end gap-1.5">
-                      {hasOriginal && (
-                        <button
-                          type="button"
-                          onClick={() => toggleOriginalPrice(idx)}
-                          className="text-muted-foreground hover:text-foreground transition-colors"
-                          aria-label={isVisible ? 'Ẩn giá gốc' : 'Xem giá gốc'}
-                        >
-                          {isVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        </button>
-                      )}
-                      <p className="font-semibold">{formatVND(item.price * item.quantity)}</p>
-                    </div>
-                    {hasOriginal && isVisible && (
-                      <p className="text-[11px] text-muted-foreground line-through">
-                        {formatVND(item.originalPrice * item.quantity)}
-                      </p>
-                    )}
-                  </div>
+            {/* divide-* lo luôn đường kẻ nên không phải xử lý phần tử cuối;
+                trên màn hình hẹp 2 cột tự xếp chồng lại thành 1 */}
+            <div className={cn(
+              twoColumns && 'grid grid-cols-1 divide-y sm:grid-cols-2 sm:divide-x sm:divide-y-0',
+            )}>
+              {itemColumns.map((column, columnIdx) => (
+                <div key={columnIdx} className="divide-y">
+                  {column.map(({ item, idx }) => {
+                    const hasOriginal = !!item.originalPrice && item.originalPrice !== item.price
+                    const isVisible   = visibleOriginalPrices.has(idx)
+                    return (
+                      <div key={idx} className="flex items-center justify-between px-3 py-2 text-sm">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium truncate">{item.name}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            ×{item.quantity} · {formatVND(item.price)}/cái
+                          </p>
+                        </div>
+                        <div className="ml-3 text-right shrink-0">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {hasOriginal && (
+                              <button
+                                type="button"
+                                onClick={() => toggleOriginalPrice(idx)}
+                                className="text-muted-foreground hover:text-foreground transition-colors"
+                                aria-label={isVisible ? 'Ẩn giá gốc' : 'Xem giá gốc'}
+                              >
+                                {isVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                              </button>
+                            )}
+                            <p className="font-semibold">{formatVND(item.price * item.quantity)}</p>
+                          </div>
+                          {hasOriginal && isVisible && (
+                            <p className="text-[11px] text-muted-foreground line-through">
+                              {formatVND(item.originalPrice * item.quantity)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-              )
-            })}
+              ))}
+            </div>
           </div>
 
           {/* Tóm tắt tài chính */}
