@@ -14,7 +14,7 @@ import { formatProfit, formatVND } from '@/lib/format'
 import { Order, statusOrders, statusOrdersVN, TRASH_RETENTION_DAYS } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { DateInput } from '@/components/ui/date-input'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -215,9 +215,9 @@ export default function OrdersPage() {
           <Button onClick={() => setCreateModal('form')}>
             <Plus /> Thêm đơn hàng
           </Button>
-          <Button variant="outline" render={<Link href="/admin/orders/trash" />}>
+          <Link href="/admin/orders/trash" className={buttonVariants({ variant: 'outline' })}>
             <Trash2 /> Thùng rác
-          </Button>
+          </Link>
           <Button variant="outline">
             <SlidersHorizontal /> Thao tác khác
           </Button>

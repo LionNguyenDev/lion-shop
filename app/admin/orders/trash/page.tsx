@@ -8,7 +8,7 @@ import { AppShell } from '@/components/AppShell'
 import OrderList from '@/components/OrderList'
 import OrderDetailModal from '@/components/OrderDetailModal'
 import { Pagination } from '@/components/ui/pagination'
-import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   AlertDialog,
@@ -153,9 +153,9 @@ export default function OrdersTrashPage() {
             Đơn nằm ở đây {TRASH_RETENTION_DAYS} ngày rồi bị xóa vĩnh viễn. Số lượng sản phẩm đã được hoàn lại kho khi xóa.
           </p>
         </div>
-        <Button variant="outline" render={<Link href="/admin/orders" />}>
+        <Link href="/admin/orders" className={buttonVariants({ variant: 'outline' })}>
           <ArrowLeft /> Danh sách đơn hàng
-        </Button>
+        </Link>
       </div>
 
       {/* ── Search ── */}

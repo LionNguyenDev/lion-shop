@@ -19,7 +19,7 @@ export function AppShell({
   customerBadge,
 }: AppShellProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-[calc(100dvh-var(--admin-banner-h))] overflow-hidden bg-background">
       {/* Sidebar — hidden on mobile */}
       <div className="hidden lg:flex lg:flex-col lg:shrink-0">
         <Sidebar orderBadge={orderBadge} productBadge={productBadge} customerBadge={customerBadge} />
