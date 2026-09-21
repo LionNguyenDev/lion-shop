@@ -21,6 +21,9 @@ export const TIKTOK_RESULTS_TTL = 2 * 60 * 60
 /** Max links per TikTok stats run */
 export const TIKTOK_MAX_LINKS = 15
 
+/** Max result rows kept across runs (oldest are dropped first) */
+export const TIKTOK_MAX_SAVED_ROWS = 150
+
 export interface Product {
   _id: string
   name: string

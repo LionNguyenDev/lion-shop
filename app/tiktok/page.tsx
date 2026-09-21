@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import { ThemeToggleBtn } from '@/app/home/components/ThemeToggle'
 import { cn } from '@/lib/utils'
-import { TIKTOK_CACHE_TTL, TIKTOK_MAX_LINKS, TIKTOK_RESULTS_TTL } from '@/lib/types'
+import { TIKTOK_CACHE_TTL, TIKTOK_MAX_LINKS, TIKTOK_MAX_SAVED_ROWS, TIKTOK_RESULTS_TTL } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -47,6 +47,7 @@ type RowStatus = 'pending' | 'loading' | 'done' | 'error'
 
 interface ResultRow {
   url: string
+  runAt: number // epoch ms of the run this row belongs to; rows are grouped by it
   status: RowStatus
   stats?: Stats
   error?: string
@@ -59,6 +60,17 @@ const sleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve) => {
     const t = setTimeout(resolve, ms)
     signal.addEventListener('abort', () => { clearTimeout(t); resolve() }, { once: true })
+  })
+
+const fmtTime = (ms: number) =>
+  new Date(ms).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+
+/** Position of each row inside its own run (1-based), so STT restarts for every run */
+const numberWithinRuns = (rows: ResultRow[]) =>
+  rows.map((r, i) => {
+    let n = 1
+    while (i - n >= 0 && rows[i - n].runAt === r.runAt) n++
+    return n
   })
 
 const fmt = (n: number | undefined) => (n === undefined ? '—' : n.toLocaleString('vi-VN'))
@@ -137,13 +149,16 @@ async function exportXlsx(rows: ResultRow[]) {
   ws.mergeCells(1, firstMetricCol, 1, lastCol)
   ws.getRow(2).height = 32
 
+  const stt       = numberWithinRuns(rows)
+  const runStarts = new Set<number>() // sheet row numbers that begin a new run (except the first)
   rows.forEach((r, i) => {
     const s = r.stats
     const row = ws.addRow(
       s
-        ? [i + 1, r.url, ...TEXT_FIELDS.map((f) => s[f.key] ?? ''), ...METRICS.map((m) => s[m.key] ?? '')]
-        : [i + 1, r.url, ...TEXT_FIELDS.map(() => ''), `Lỗi: ${r.error ?? 'chưa chạy'}`],
+        ? [stt[i], r.url, ...TEXT_FIELDS.map((f) => s[f.key] ?? ''), ...METRICS.map((m) => s[m.key] ?? '')]
+        : [stt[i], r.url, ...TEXT_FIELDS.map(() => ''), `Lỗi: ${r.error ?? 'chưa chạy'}`],
     )
+    if (i > 0 && r.runAt !== rows[i - 1].runAt) runStarts.add(row.number)
     row.getCell(2).value = { text: r.url, hyperlink: r.url }
     if (!s) ws.mergeCells(row.number, firstMetricCol, row.number, lastCol)
   })
@@ -152,7 +167,9 @@ async function exportXlsx(rows: ResultRow[]) {
   ws.eachRow((row, rowNumber) => {
     for (let c = 1; c <= lastCol; c++) {
       const cell = row.getCell(c)
-      cell.border = { top: border, left: border, bottom: border, right: border }
+      // A thicker line separates runs, matching the dividers in the on-screen table
+      const top = runStarts.has(rowNumber) ? { style: 'medium' as const } : border
+      cell.border = { top, left: border, bottom: border, right: border }
       if (rowNumber <= 2) {
         cell.font = { bold: true }
         cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
@@ -234,6 +251,9 @@ export default function TikTokStatsPage() {
   const [results, setResults] = useState<ResultRow[]>([])
   const [running, setRunning] = useState(false)
   const [loaded, setLoaded]   = useState(false)
+  // "Xóa hết" deletes the saved copy but leaves the table on screen until reload.
+  // Runs up to this runAt are display-only and never saved again (-1 = nothing cleared yet).
+  const [clearedAt, setClearedAt] = useState(-1)
   const [expiresAt, setExpiresAt] = useState<Date | null>(null)
   const inputRefs             = useRef(new Map<number, HTMLInputElement>())
   const abortRef              = useRef<AbortController | null>(null)
@@ -245,8 +265,8 @@ export default function TikTokStatsPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { rows: ResultRow[]; expiresAt: string | null } | null) => {
         if (!data?.rows.length) return
-        setResults(data.rows)
-        setLines(data.rows.map((r) => newLine(r.url)))
+        // Tables saved before runs were tracked have no runAt; treat them as one run
+        setResults(data.rows.map((r) => ({ ...r, runAt: r.runAt ?? 0 })))
         setExpiresAt(data.expiresAt ? new Date(data.expiresAt) : null)
       })
       .catch(() => toast.error('Không tải được kết quả đã lưu'))
@@ -254,7 +274,9 @@ export default function TikTokStatsPage() {
   }, [])
 
   // Saves are chained so a slow request can never overwrite a newer table
-  const save = (rows: ResultRow[]) => {
+  const save = (all: ResultRow[]) => {
+    const rows = all.filter((r) => r.runAt > clearedAt).slice(-TIKTOK_MAX_SAVED_ROWS)
+    if (rows.length === 0) return
     saveQueue.current = saveQueue.current.then(async () => {
       try {
         const res = await fetch('/api/tiktok-results', {
@@ -321,11 +343,12 @@ export default function TikTokStatsPage() {
     focusLine(merged[merged.length - 1].id)
   }
 
+  // Clears the link input and the saved copy; the results stay on screen until the page is reloaded
   const clearAll = () => {
     const first = newLine()
     setLines([first])
-    setResults([])
     setExpiresAt(null)
+    setClearedAt(results.reduce((max, r) => Math.max(max, r.runAt), 0))
     focusLine(first.id)
     saveQueue.current = saveQueue.current.then(() =>
       fetch('/api/tiktok-results', { method: 'DELETE' })
@@ -411,7 +434,12 @@ export default function TikTokStatsPage() {
       toast.error(`Link không phải TikTok: ${invalid[0]}`)
       return
     }
-    run(urls.map((url) => ({ url, status: 'pending' })), urls.map((_, i) => i))
+    // Each run is appended below the previous ones
+    const runAt = Date.now()
+    run(
+      [...results, ...urls.map((url): ResultRow => ({ url, runAt, status: 'pending' }))],
+      urls.map((_, i) => results.length + i),
+    )
   }
 
   const retryFailed = () => {
@@ -419,6 +447,7 @@ export default function TikTokStatsPage() {
     run(results, failed)
   }
 
+  const stt     = numberWithinRuns(results)
   const done    = results.filter((r) => r.status === 'done').length
   const failed  = results.filter((r) => r.status === 'error').length
   const pending = results.filter((r) => r.status === 'pending').length
@@ -552,12 +581,27 @@ export default function TikTokStatsPage() {
                       </td>
                     </tr>
                   ) : (
-                    results.map((r, i) => (
-                      <tr key={r.url} className={cn(r.status === 'loading' && 'bg-primary/5')}>
+                    results.map((r, i) => {
+                      const newRun = i === 0 || r.runAt !== results[i - 1].runAt
+                      const runSize = results.filter((x) => x.runAt === r.runAt).length
+                      return (
+                      <Fragment key={`${r.runAt}-${r.url}`}>
+                      {newRun && (
+                        <tr>
+                          <td
+                            colSpan={2 + TEXT_FIELDS.length + METRICS.length}
+                            className={cn('bg-muted/60 px-3 py-1 text-xs font-medium text-muted-foreground', i > 0 && 'border-t-2 border-foreground/25')}
+                          >
+                            {r.runAt ? `Lần chạy lúc ${fmtTime(r.runAt)}` : 'Lần chạy trước'} · {runSize} link
+                            {r.runAt <= clearedAt && ' · đã xóa khỏi bộ nhớ, sẽ mất khi tải lại trang'}
+                          </td>
+                        </tr>
+                      )}
+                      <tr className={cn(r.status === 'loading' && 'bg-primary/5')}>
                         <td className="border-r px-2 py-2 text-center">
                           <div className="flex items-center justify-center gap-1.5">
                             <StatusIcon status={r.status} />
-                            <span className="tabular-nums">{i + 1}</span>
+                            <span className="tabular-nums">{stt[i]}</span>
                           </div>
                         </td>
                         <td className="max-w-56 border-r px-2 py-2">
@@ -584,7 +628,9 @@ export default function TikTokStatsPage() {
                           </td>
                         )}
                       </tr>
-                    ))
+                      </Fragment>
+                      )
+                    })
                   )}
                 </tbody>
               </table>

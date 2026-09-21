@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireTikTokUser } from '@/lib/tiktokAccess'
-import { TIKTOK_MAX_LINKS, TIKTOK_RESULTS_TTL } from '@/lib/types'
+import { TIKTOK_MAX_SAVED_ROWS, TIKTOK_RESULTS_TTL } from '@/lib/types'
 import TikTokResultSet, { type ITikTokResultRow } from '@/models/TikTokResultSet'
 
 const STAT_KEYS = ['views', 'likes', 'comments', 'favorites', 'shares'] as const
@@ -17,7 +17,8 @@ function sanitizeRow(raw: unknown): ITikTokResultRow | null {
   const status = r.status === 'loading' ? 'pending' : r.status
   if (status !== 'pending' && status !== 'done' && status !== 'error') return null
 
-  const row: ITikTokResultRow = { url: r.url, status }
+  const runAt = Number.isFinite(r.runAt) ? Number(r.runAt) : 0
+  const row: ITikTokResultRow = { url: r.url, runAt, status }
   if (status === 'done') {
     const s = r.stats as Record<string, unknown> | undefined
     if (!s || !STAT_KEYS.every((k) => Number.isFinite(s[k]))) return null
@@ -59,7 +60,7 @@ export async function PUT(request: Request) {
   } catch {
     return NextResponse.json({ error: 'Dữ liệu không hợp lệ' }, { status: 400 })
   }
-  if (!Array.isArray(body.rows) || body.rows.length > TIKTOK_MAX_LINKS) {
+  if (!Array.isArray(body.rows) || body.rows.length > TIKTOK_MAX_SAVED_ROWS) {
     return NextResponse.json({ error: 'Dữ liệu không hợp lệ' }, { status: 400 })
   }
   const rows = body.rows.map(sanitizeRow)

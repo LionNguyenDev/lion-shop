@@ -5,6 +5,7 @@ export type TikTokResultStatus = 'pending' | 'done' | 'error'
 
 export interface ITikTokResultRow {
   url: string
+  runAt: number // epoch ms of the run this row belongs to; groups rows by run
   status: TikTokResultStatus
   // title / description / followers are optional: tables saved before they were tracked don't have them
   stats?: {
@@ -20,7 +21,7 @@ export interface ITikTokResultRow {
   error?: string
 }
 
-/** The results table of one user's latest TikTok run, so it survives reloads and new sessions */
+/** The results table of one user's TikTok runs, so it survives reloads and new sessions */
 export interface ITikTokResultSet extends Document {
   userId: mongoose.Types.ObjectId
   rows: ITikTokResultRow[]
@@ -44,6 +45,7 @@ const StatsSchema = new Schema(
 const RowSchema = new Schema(
   {
     url:    { type: String, required: true },
+    runAt:  { type: Number, default: 0 },
     status: { type: String, enum: ['pending', 'done', 'error'], required: true },
     stats:  { type: StatsSchema, required: false },
     error:  { type: String, required: false },
