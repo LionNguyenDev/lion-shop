@@ -31,7 +31,10 @@ const REQUEST_DELAY_MS = 4000
 const MAX_BLOCKED_STREAK = 3
 
 interface Stats {
-  followers?: number // missing on tables saved before followers were tracked
+  // Missing on tables saved before these were tracked
+  title?: string
+  description?: string
+  followers?: number
   views: number
   likes: number
   comments: number
@@ -60,6 +63,12 @@ const sleep = (ms: number, signal: AbortSignal) =>
 
 const fmt = (n: number | undefined) => (n === undefined ? '—' : n.toLocaleString('vi-VN'))
 
+/** Descriptive columns shown between Link and the "Results" group */
+const TEXT_FIELDS = [
+  { label: 'Title',       key: 'title',       width: 30 },
+  { label: 'Description', key: 'description', width: 60 },
+] as const
+
 const METRICS = [
   { label: 'Follower',           key: 'followers' },
   { label: 'View',               key: 'views' },
@@ -69,19 +78,24 @@ const METRICS = [
   { label: 'Share',              key: 'shares' },
 ] as const
 
-/** Copies one metric column as newline-separated raw numbers so it pastes straight into Excel */
-function CopyColumnButton({ rows, metric }: { rows: ResultRow[]; metric: (typeof METRICS)[number] }) {
+type CopyableColumn = (typeof TEXT_FIELDS)[number] | (typeof METRICS)[number]
+
+/** Copies one column as one value per line (raw numbers) so it pastes straight into Excel */
+function CopyColumnButton({ rows, column }: { rows: ResultRow[]; column: CopyableColumn }) {
   const [copied, setCopied] = useState(false)
   const hasData = rows.some((r) => r.stats)
 
   const copy = async () => {
-    // Rows without stats become blank lines so the pasted column stays aligned with the links
-    const text = rows.map((r) => String(r.stats?.[metric.key] ?? '')).join('\n')
+    // Rows without stats become blank lines so the pasted column stays aligned with the links.
+    // Line breaks / tabs inside captions would split a cell in Excel, so flatten them to spaces.
+    const text = rows
+      .map((r) => String(r.stats?.[column.key] ?? '').replace(/[\t\r\n]+/g, ' ').trim())
+      .join('\n')
     try {
       await navigator.clipboard.writeText(text)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
-      toast.success(`Đã copy cột ${metric.label}`)
+      toast.success(`Đã copy cột ${column.label}`)
     } catch {
       toast.error('Không copy được, trình duyệt chặn quyền clipboard')
     }
@@ -93,8 +107,8 @@ function CopyColumnButton({ rows, metric }: { rows: ResultRow[]; metric: (typeof
       size="icon-xs"
       disabled={!hasData}
       onClick={copy}
-      title={`Copy cột ${metric.label}`}
-      aria-label={`Copy cột ${metric.label}`}
+      title={`Copy cột ${column.label}`}
+      aria-label={`Copy cột ${column.label}`}
     >
       {copied ? <Check className="text-emerald-500" /> : <Copy />}
     </Button>
@@ -106,27 +120,32 @@ async function exportXlsx(rows: ResultRow[]) {
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('TikTok')
 
-  // STT, Link, then one column per metric
-  const lastCol = 2 + METRICS.length
-  ws.columns = [{ width: 6 }, { width: 60 }, ...METRICS.map(() => ({ width: 12 }))]
+  // STT, Link, Title, Description, then the "Results" group with one column per metric
+  const firstMetricCol = 3 + TEXT_FIELDS.length
+  const lastCol        = firstMetricCol + METRICS.length - 1
+  ws.columns = [
+    { width: 6 },
+    { width: 60 },
+    ...TEXT_FIELDS.map((f) => ({ width: f.width })),
+    ...METRICS.map(() => ({ width: 12 })),
+  ]
 
-  // Two-row header: "Results" spans the 5 metric columns, STT/Link span both rows
-  ws.getRow(1).values = ['STT', 'Link', 'Results']
-  ws.getRow(2).values = ['', '', ...METRICS.map((m) => m.label)]
-  ws.mergeCells('A1:A2')
-  ws.mergeCells('B1:B2')
-  ws.mergeCells(1, 3, 1, lastCol)
+  // Two-row header: "Results" spans the metric columns, every other column spans both rows
+  ws.getRow(1).values = ['STT', 'Link', ...TEXT_FIELDS.map((f) => f.label), 'Results']
+  ws.getRow(2).values = [...Array(firstMetricCol - 1).fill(''), ...METRICS.map((m) => m.label)]
+  for (let c = 1; c < firstMetricCol; c++) ws.mergeCells(1, c, 2, c)
+  ws.mergeCells(1, firstMetricCol, 1, lastCol)
   ws.getRow(2).height = 32
 
   rows.forEach((r, i) => {
     const s = r.stats
     const row = ws.addRow(
       s
-        ? [i + 1, r.url, ...METRICS.map((m) => s[m.key] ?? '')]
-        : [i + 1, r.url, `Lỗi: ${r.error ?? 'chưa chạy'}`],
+        ? [i + 1, r.url, ...TEXT_FIELDS.map((f) => s[f.key] ?? ''), ...METRICS.map((m) => s[m.key] ?? '')]
+        : [i + 1, r.url, ...TEXT_FIELDS.map(() => ''), `Lỗi: ${r.error ?? 'chưa chạy'}`],
     )
     row.getCell(2).value = { text: r.url, hyperlink: r.url }
-    if (!s) ws.mergeCells(row.number, 3, row.number, lastCol)
+    if (!s) ws.mergeCells(row.number, firstMetricCol, row.number, lastCol)
   })
 
   const border = { style: 'thin' as const }
@@ -139,11 +158,13 @@ async function exportXlsx(rows: ResultRow[]) {
         cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
       } else if (c === 2) {
         cell.font = { color: { argb: 'FF0563C1' }, underline: true }
-      } else if (c >= 3) {
-        cell.numFmt = '#,##0'
-        cell.alignment = { horizontal: 'center' }
+        cell.alignment = { vertical: 'top' }
+      } else if (c < firstMetricCol) {
+        // Title / Description: full text, wrapped
+        cell.alignment = c === 1 ? { horizontal: 'center', vertical: 'top' } : { vertical: 'top', wrapText: true }
       } else {
-        cell.alignment = { horizontal: 'center' }
+        cell.numFmt = '#,##0'
+        cell.alignment = { horizontal: 'center', vertical: 'top' }
       }
     }
   })
@@ -404,7 +425,7 @@ export default function TikTokStatsPage() {
 
   return (
     <TikTokShell>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <div className="grid gap-6">
         {/* Input */}
         <Card>
           <CardContent className="p-4">
@@ -502,6 +523,14 @@ export default function TikTokStatsPage() {
                   <tr>
                     <th rowSpan={2} className="border-b border-r px-2 py-1.5 font-semibold">STT</th>
                     <th rowSpan={2} className="border-b border-r px-2 py-1.5 text-left font-semibold">Link</th>
+                    {TEXT_FIELDS.map((f) => (
+                      <th key={f.key} rowSpan={2} className="border-b border-r px-2 py-1.5 text-left font-semibold">
+                        <div className="flex items-center gap-1">
+                          <span>{f.label}</span>
+                          <CopyColumnButton rows={results} column={f} />
+                        </div>
+                      </th>
+                    ))}
                     <th colSpan={METRICS.length} className="border-b px-2 py-1.5 font-semibold">Results</th>
                   </tr>
                   <tr>
@@ -509,7 +538,7 @@ export default function TikTokStatsPage() {
                       <th key={m.key} className="border-b border-r px-2 py-1.5 font-semibold last:border-r-0">
                         <div className="flex flex-col items-center gap-0.5">
                           <span>{m.label}</span>
-                          <CopyColumnButton rows={results} metric={m} />
+                          <CopyColumnButton rows={results} column={m} />
                         </div>
                       </th>
                     ))}
@@ -518,8 +547,8 @@ export default function TikTokStatsPage() {
                 <tbody className="divide-y">
                   {results.length === 0 ? (
                     <tr>
-                      <td colSpan={2 + METRICS.length} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                        {loaded ? 'Nhập link bên trái rồi bấm Chạy' : 'Đang tải kết quả đã lưu…'}
+                      <td colSpan={2 + TEXT_FIELDS.length + METRICS.length} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                        {loaded ? 'Nhập link ở trên rồi bấm Chạy' : 'Đang tải kết quả đã lưu…'}
                       </td>
                     </tr>
                   ) : (
@@ -536,6 +565,15 @@ export default function TikTokStatsPage() {
                             {r.url.replace(/^https:\/\/(www\.)?/, '')}
                           </a>
                         </td>
+                        {TEXT_FIELDS.map((f) => {
+                          const text = r.stats?.[f.key] ?? ''
+                          return (
+                            // Long captions are clamped to 2 lines; hover shows the full text
+                            <td key={f.key} className={cn('border-r px-2 py-2', f.key === 'title' ? 'min-w-32 max-w-48' : 'min-w-48 max-w-80')}>
+                              <p className="line-clamp-2 break-words text-xs" title={text}>{text}</p>
+                            </td>
+                          )
+                        })}
                         {r.stats ? (
                           METRICS.map((m) => (
                             <td key={m.key} className="border-r px-2 py-2 text-center tabular-nums last:border-r-0">{fmt(r.stats?.[m.key])}</td>

@@ -3,6 +3,8 @@ import { TIKTOK_CACHE_TTL } from '@/lib/types'
 
 export interface ITikTokStat extends Document {
   videoId: string
+  title: string
+  description: string
   followers: number
   views: number
   likes: number
@@ -14,6 +16,9 @@ export interface ITikTokStat extends Document {
 
 const TikTokStatSchema: Schema = new Schema({
   videoId:   { type: String, required: true, unique: true },
+  // Strings default to '' rather than required, since empty is a valid value
+  title:       { type: String, default: '' },
+  description: { type: String, default: '' },
   followers: { type: Number, required: true },
   views:     { type: Number, required: true },
   likes:     { type: Number, required: true },

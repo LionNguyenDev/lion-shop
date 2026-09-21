@@ -6,8 +6,17 @@ export type TikTokResultStatus = 'pending' | 'done' | 'error'
 export interface ITikTokResultRow {
   url: string
   status: TikTokResultStatus
-  // followers is optional: tables saved before it was tracked don't have it
-  stats?: { followers?: number; views: number; likes: number; comments: number; favorites: number; shares: number }
+  // title / description / followers are optional: tables saved before they were tracked don't have them
+  stats?: {
+    title?: string
+    description?: string
+    followers?: number
+    views: number
+    likes: number
+    comments: number
+    favorites: number
+    shares: number
+  }
   error?: string
 }
 
@@ -20,6 +29,8 @@ export interface ITikTokResultSet extends Document {
 
 const StatsSchema = new Schema(
   {
+    title:       { type: String, required: false },
+    description: { type: String, required: false },
     followers: { type: Number, required: false },
     views:     { type: Number, required: true },
     likes:     { type: Number, required: true },

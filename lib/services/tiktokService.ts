@@ -4,6 +4,8 @@ import TikTokStat from '@/models/TikTokStat'
 
 export interface TikTokStats {
   videoId: string
+  title: string       // only photo posts have a title; '' for regular videos
+  description: string // the caption, hashtags included; '' when there is none
   followers: number
   views: number
   likes: number
@@ -122,6 +124,8 @@ async function fetchFromTikTok(url: URL): Promise<Omit<TikTokStats, 'cached'>> {
   const a = { ...item.authorStats, ...item.authorStatsV2 }
   return {
     videoId,
+    title:       typeof item.imagePost?.title === 'string' ? item.imagePost.title.trim() : '',
+    description: typeof item.desc === 'string' ? item.desc.trim() : '',
     followers: toNumber(a.followerCount),
     views:     toNumber(s.playCount),
     likes:     toNumber(s.diggCount),
@@ -141,12 +145,13 @@ export async function getTikTokStats(rawUrl: string): Promise<TikTokStats> {
     const hit = await TikTokStat.findOne({
       videoId:   knownId,
       fetchedAt: { $gt: new Date(Date.now() - TIKTOK_CACHE_TTL * 1000) },
-      // Entries cached before followers were tracked count as a miss
-      followers: { $exists: true },
+      // Entries cached before these fields were tracked count as a miss
+      followers:   { $exists: true },
+      description: { $exists: true },
     }).lean()
     if (hit) {
-      const { videoId, followers, views, likes, comments, favorites, shares } = hit
-      return { videoId, followers, views, likes, comments, favorites, shares, cached: true }
+      const { videoId, title, description, followers, views, likes, comments, favorites, shares } = hit
+      return { videoId, title, description, followers, views, likes, comments, favorites, shares, cached: true }
     }
   }
 

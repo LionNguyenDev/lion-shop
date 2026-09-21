@@ -22,7 +22,9 @@ function sanitizeRow(raw: unknown): ITikTokResultRow | null {
     const s = r.stats as Record<string, unknown> | undefined
     if (!s || !STAT_KEYS.every((k) => Number.isFinite(s[k]))) return null
     row.stats = {
-      // Optional so tables saved before followers were tracked can still be re-saved
+      // Optional so tables saved before these were tracked can still be re-saved
+      ...(typeof s.title === 'string' && { title: s.title.slice(0, 500) }),
+      ...(typeof s.description === 'string' && { description: s.description.slice(0, 5000) }),
       ...(Number.isFinite(s.followers) && { followers: Number(s.followers) }),
       views:     Number(s.views),
       likes:     Number(s.likes),
