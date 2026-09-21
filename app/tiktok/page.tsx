@@ -90,6 +90,30 @@ const METRICS = [
   { label: 'Share',              key: 'shares' },
 ] as const
 
+/**
+ * Clipboard API only exists on https / localhost. On e.g. http://192.168… fall back to the
+ * old execCommand path so copying still works there.
+ */
+async function copyText(text: string) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+  const ta = document.createElement('textarea')
+  ta.value = text
+  ta.setAttribute('readonly', '')
+  ta.style.position = 'fixed'
+  ta.style.opacity = '0'
+  document.body.appendChild(ta)
+  ta.select()
+  const ok = document.execCommand('copy')
+  ta.remove()
+  if (!ok) throw new Error('copy failed')
+}
+
+// Line breaks / tabs would make Excel split one value across several cells
+const flatten = (v: string | number | undefined) => String(v ?? '').replace(/[\t\r\n]+/g, ' ').trim()
+
 type CopyableColumn = (typeof TEXT_FIELDS)[number] | (typeof METRICS)[number]
 
 /** Copies one column as one value per line (raw numbers) so it pastes straight into Excel */
@@ -98,13 +122,10 @@ function CopyColumnButton({ rows, column }: { rows: ResultRow[]; column: Copyabl
   const hasData = rows.some((r) => r.stats)
 
   const copy = async () => {
-    // Rows without stats become blank lines so the pasted column stays aligned with the links.
-    // Line breaks / tabs inside captions would split a cell in Excel, so flatten them to spaces.
-    const text = rows
-      .map((r) => String(r.stats?.[column.key] ?? '').replace(/[\t\r\n]+/g, ' ').trim())
-      .join('\n')
+    // Rows without stats become blank lines so the pasted column stays aligned with the links
+    const text = rows.map((r) => flatten(r.stats?.[column.key])).join('\n')
     try {
-      await navigator.clipboard.writeText(text)
+      await copyText(text)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
       toast.success(`Đã copy cột ${column.label}`)
@@ -254,6 +275,7 @@ export default function TikTokStatsPage() {
   // "Xóa hết" deletes the saved copy but leaves the table on screen until reload.
   // Runs up to this runAt are display-only and never saved again (-1 = nothing cleared yet).
   const [clearedAt, setClearedAt] = useState(-1)
+  const [copiedCell, setCopiedCell] = useState<string | null>(null)
   const [expiresAt, setExpiresAt] = useState<Date | null>(null)
   const inputRefs             = useRef(new Map<number, HTMLInputElement>())
   const abortRef              = useRef<AbortController | null>(null)
@@ -447,6 +469,26 @@ export default function TikTokStatsPage() {
     run(results, failed)
   }
 
+  /** Copies a single cell, so it can be pasted into one (possibly merged) Excel cell */
+  const copyCell = async (cellKey: string, value: string | number | undefined) => {
+    const text = flatten(value)
+    if (!text) return
+    try {
+      await copyText(text)
+      setCopiedCell(cellKey)
+      setTimeout(() => setCopiedCell((k) => (k === cellKey ? null : k)), 1000)
+    } catch {
+      toast.error('Không copy được, trình duyệt chặn quyền clipboard')
+    }
+  }
+
+  const cellClass = (cellKey: string, hasValue: boolean) =>
+    cn(
+      'border-r px-2 py-2 transition-colors',
+      hasValue && 'cursor-copy hover:bg-muted/70',
+      copiedCell === cellKey && 'bg-emerald-500/15 hover:bg-emerald-500/15',
+    )
+
   const stt     = numberWithinRuns(results)
   const done    = results.filter((r) => r.status === 'done').length
   const failed  = results.filter((r) => r.status === 'error').length
@@ -610,18 +652,34 @@ export default function TikTokStatsPage() {
                           </a>
                         </td>
                         {TEXT_FIELDS.map((f) => {
-                          const text = r.stats?.[f.key] ?? ''
+                          const text    = r.stats?.[f.key] ?? ''
+                          const cellKey = `${i}-${f.key}`
                           return (
-                            // Long captions are clamped to 2 lines; hover shows the full text
-                            <td key={f.key} className={cn('border-r px-2 py-2', f.key === 'title' ? 'min-w-32 max-w-48' : 'min-w-48 max-w-80')}>
-                              <p className="line-clamp-2 break-words text-xs" title={text}>{text}</p>
+                            // Long captions are clamped to 2 lines; hover shows the full text. Click copies it.
+                            <td
+                              key={f.key}
+                              onClick={() => copyCell(cellKey, text)}
+                              className={cn(cellClass(cellKey, !!text), f.key === 'title' ? 'min-w-32 max-w-48' : 'min-w-48 max-w-80')}
+                            >
+                              <p className="line-clamp-2 break-words text-xs" title={text || undefined}>{text}</p>
                             </td>
                           )
                         })}
                         {r.stats ? (
-                          METRICS.map((m) => (
-                            <td key={m.key} className="border-r px-2 py-2 text-center tabular-nums last:border-r-0">{fmt(r.stats?.[m.key])}</td>
-                          ))
+                          METRICS.map((m) => {
+                            const value   = r.stats?.[m.key]
+                            const cellKey = `${i}-${m.key}`
+                            return (
+                              <td
+                                key={m.key}
+                                onClick={() => copyCell(cellKey, value)}
+                                title={value === undefined ? undefined : 'Bấm để copy'}
+                                className={cn(cellClass(cellKey, value !== undefined), 'text-center tabular-nums last:border-r-0')}
+                              >
+                                {fmt(value)}
+                              </td>
+                            )
+                          })
                         ) : (
                           <td colSpan={METRICS.length} className={cn('px-2 py-2 text-center text-xs', r.status === 'error' ? 'text-destructive' : 'text-muted-foreground')}>
                             {r.status === 'error' ? r.error : r.status === 'loading' ? 'Đang lấy…' : 'Đang chờ'}
@@ -635,6 +693,11 @@ export default function TikTokStatsPage() {
                 </tbody>
               </table>
             </div>
+            {results.length > 0 && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Bấm vào một ô để copy giá trị ô đó, hoặc bấm biểu tượng copy ở tiêu đề để copy cả cột.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
