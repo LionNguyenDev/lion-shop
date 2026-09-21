@@ -4,6 +4,7 @@ import TikTokStat from '@/models/TikTokStat'
 
 export interface TikTokStats {
   videoId: string
+  followers: number
   views: number
   likes: number
   comments: number
@@ -116,10 +117,12 @@ async function fetchFromTikTok(url: URL): Promise<Omit<TikTokStats, 'cached'>> {
     throw new TikTokError('TikTok đang chặn request, thử lại sau ít phút', 503, true)
   }
 
-  // statsV2 holds exact values as strings; stats is the older numeric shape
+  // statsV2 / authorStatsV2 hold exact values as strings; stats / authorStats are the older numeric shape
   const s = { ...item.stats, ...item.statsV2 }
+  const a = { ...item.authorStats, ...item.authorStatsV2 }
   return {
     videoId,
+    followers: toNumber(a.followerCount),
     views:     toNumber(s.playCount),
     likes:     toNumber(s.diggCount),
     comments:  toNumber(s.commentCount),
@@ -138,10 +141,12 @@ export async function getTikTokStats(rawUrl: string): Promise<TikTokStats> {
     const hit = await TikTokStat.findOne({
       videoId:   knownId,
       fetchedAt: { $gt: new Date(Date.now() - TIKTOK_CACHE_TTL * 1000) },
+      // Entries cached before followers were tracked count as a miss
+      followers: { $exists: true },
     }).lean()
     if (hit) {
-      const { videoId, views, likes, comments, favorites, shares } = hit
-      return { videoId, views, likes, comments, favorites, shares, cached: true }
+      const { videoId, followers, views, likes, comments, favorites, shares } = hit
+      return { videoId, followers, views, likes, comments, favorites, shares, cached: true }
     }
   }
 

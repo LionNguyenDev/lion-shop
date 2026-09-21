@@ -15,6 +15,12 @@ export const TRASH_RETENTION_DAYS = 10
  */
 export const TIKTOK_CACHE_TTL = 10 * 60
 
+/** How long a user's TikTok results table is kept (seconds), counted from its last save. Same migration note applies. */
+export const TIKTOK_RESULTS_TTL = 2 * 60 * 60
+
+/** Max links per TikTok stats run */
+export const TIKTOK_MAX_LINKS = 15
+
 export interface Product {
   _id: string
   name: string

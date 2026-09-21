@@ -1,4 +1,6 @@
-// Migration: đổi thời gian cache số liệu TikTok (collection "tiktokstats").
+// Migration: đổi thời gian lưu dữ liệu TikTok:
+//   - "tiktokstats":       cache số liệu từng video (TIKTOK_CACHE_TTL)
+//   - "tiktokresultsets":  bảng kết quả của từng user (TIKTOK_RESULTS_TTL)
 //
 // TTL index không thể đổi expireAfterSeconds bằng createIndex, và Mongoose không bao giờ
 // sửa index đã tồn tại → xóa TTL index cũ rồi tạo lại với thời gian mới.
@@ -37,29 +39,29 @@ if (!MONGODB_URI) {
   process.exit(1)
 }
 
-// Phải khớp TIKTOK_CACHE_TTL trong lib/types.ts
-const TIKTOK_CACHE_TTL = 10 * 60
-const TTL_INDEX_NAME = 'fetchedAt_1'
+// Phải khớp TIKTOK_CACHE_TTL / TIKTOK_RESULTS_TTL trong lib/types.ts
+const TARGETS = [
+  { collection: 'tiktokstats',      field: 'fetchedAt', ttl: 10 * 60,      label: 'cache số liệu TikTok' },
+  { collection: 'tiktokresultsets', field: 'savedAt',   ttl: 2 * 60 * 60,  label: 'bảng kết quả TikTok' },
+]
 
 await mongoose.connect(MONGODB_URI)
-const coll = mongoose.connection.collection('tiktokstats')
 
-const existing = (await coll.indexes().catch(() => [])).find((ix) => ix.name === TTL_INDEX_NAME)
-if (existing?.expireAfterSeconds === TIKTOK_CACHE_TTL) {
-  console.log(`TTL index đã đúng ${TIKTOK_CACHE_TTL}s, không cần đổi.`)
-} else {
-  if (existing) {
-    await coll.dropIndex(TTL_INDEX_NAME)
-    console.log(`Đã xóa TTL index cũ (${existing.expireAfterSeconds}s).`)
+for (const { collection, field, ttl, label } of TARGETS) {
+  const coll      = mongoose.connection.collection(collection)
+  const indexName = `${field}_1`
+  const existing  = (await coll.indexes().catch(() => [])).find((ix) => ix.name === indexName)
+
+  if (existing?.expireAfterSeconds === ttl) {
+    console.log(`[${collection}] TTL index đã đúng ${ttl}s, không cần đổi.`)
+  } else {
+    if (existing) {
+      await coll.dropIndex(indexName)
+      console.log(`[${collection}] Đã xóa TTL index cũ (${existing.expireAfterSeconds}s).`)
+    }
+    await coll.createIndex({ [field]: 1 }, { name: indexName, expireAfterSeconds: ttl })
+    console.log(`[${collection}] Đã tạo TTL index: ${label} tự xóa sau ${ttl / 60} phút.`)
   }
-  await coll.createIndex({ fetchedAt: 1 }, { name: TTL_INDEX_NAME, expireAfterSeconds: TIKTOK_CACHE_TTL })
-  console.log(`Đã tạo TTL index: cache TikTok tự xóa sau ${TIKTOK_CACHE_TTL / 60} phút.`)
-}
-
-console.log('\nIndex hiện tại của collection "tiktokstats":')
-for (const ix of await coll.indexes()) {
-  const ttl = ix.expireAfterSeconds !== undefined ? ` (TTL ${ix.expireAfterSeconds}s)` : ''
-  console.log(`  - ${ix.name}: ${JSON.stringify(ix.key)}${ttl}`)
 }
 
 await mongoose.disconnect()

@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
+  Check,
   CheckCircle2,
   Clock,
+  Copy,
   Download,
   Loader2,
   LogOut,
@@ -18,23 +20,24 @@ import {
 } from 'lucide-react'
 import { ThemeToggleBtn } from '@/app/home/components/ThemeToggle'
 import { cn } from '@/lib/utils'
-import { TIKTOK_CACHE_TTL } from '@/lib/types'
+import { TIKTOK_CACHE_TTL, TIKTOK_MAX_LINKS, TIKTOK_RESULTS_TTL } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
-const MAX_LINKS        = 15
+const MAX_LINKS        = TIKTOK_MAX_LINKS
 const REQUEST_DELAY_MS = 4000
 /** Consecutive "TikTok is refusing us" errors before the run stops itself */
 const MAX_BLOCKED_STREAK = 3
 
 interface Stats {
+  followers?: number // missing on tables saved before followers were tracked
   views: number
   likes: number
   comments: number
   favorites: number
   shares: number
-  cached: boolean
+  cached?: boolean
 }
 
 type RowStatus = 'pending' | 'loading' | 'done' | 'error'
@@ -55,39 +58,80 @@ const sleep = (ms: number, signal: AbortSignal) =>
     signal.addEventListener('abort', () => { clearTimeout(t); resolve() }, { once: true })
   })
 
-const fmt = (n: number) => n.toLocaleString('vi-VN')
+const fmt = (n: number | undefined) => (n === undefined ? '—' : n.toLocaleString('vi-VN'))
+
+const METRICS = [
+  { label: 'Follower',           key: 'followers' },
+  { label: 'View',               key: 'views' },
+  { label: 'Like',               key: 'likes' },
+  { label: 'CMT',                key: 'comments' },
+  { label: 'Added to Favorites', key: 'favorites' },
+  { label: 'Share',              key: 'shares' },
+] as const
+
+/** Copies one metric column as newline-separated raw numbers so it pastes straight into Excel */
+function CopyColumnButton({ rows, metric }: { rows: ResultRow[]; metric: (typeof METRICS)[number] }) {
+  const [copied, setCopied] = useState(false)
+  const hasData = rows.some((r) => r.stats)
+
+  const copy = async () => {
+    // Rows without stats become blank lines so the pasted column stays aligned with the links
+    const text = rows.map((r) => String(r.stats?.[metric.key] ?? '')).join('\n')
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+      toast.success(`Đã copy cột ${metric.label}`)
+    } catch {
+      toast.error('Không copy được, trình duyệt chặn quyền clipboard')
+    }
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon-xs"
+      disabled={!hasData}
+      onClick={copy}
+      title={`Copy cột ${metric.label}`}
+      aria-label={`Copy cột ${metric.label}`}
+    >
+      {copied ? <Check className="text-emerald-500" /> : <Copy />}
+    </Button>
+  )
+}
 
 async function exportXlsx(rows: ResultRow[]) {
   const ExcelJS = (await import('exceljs')).default
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('TikTok')
 
-  ws.columns = [
-    { width: 6 }, { width: 60 }, { width: 12 }, { width: 12 }, { width: 10 }, { width: 12 }, { width: 10 },
-  ]
+  // STT, Link, then one column per metric
+  const lastCol = 2 + METRICS.length
+  ws.columns = [{ width: 6 }, { width: 60 }, ...METRICS.map(() => ({ width: 12 }))]
 
   // Two-row header: "Results" spans the 5 metric columns, STT/Link span both rows
   ws.getRow(1).values = ['STT', 'Link', 'Results']
-  ws.getRow(2).values = ['', '', 'View', 'Like', 'CMT', 'Added to Favorites', 'Share']
+  ws.getRow(2).values = ['', '', ...METRICS.map((m) => m.label)]
   ws.mergeCells('A1:A2')
   ws.mergeCells('B1:B2')
-  ws.mergeCells('C1:G1')
+  ws.mergeCells(1, 3, 1, lastCol)
   ws.getRow(2).height = 32
 
   rows.forEach((r, i) => {
     const s = r.stats
     const row = ws.addRow(
       s
-        ? [i + 1, r.url, s.views, s.likes, s.comments, s.favorites, s.shares]
+        ? [i + 1, r.url, ...METRICS.map((m) => s[m.key] ?? '')]
         : [i + 1, r.url, `Lỗi: ${r.error ?? 'chưa chạy'}`],
     )
     row.getCell(2).value = { text: r.url, hyperlink: r.url }
-    if (!s) ws.mergeCells(row.number, 3, row.number, 7)
+    if (!s) ws.mergeCells(row.number, 3, row.number, lastCol)
   })
 
   const border = { style: 'thin' as const }
   ws.eachRow((row, rowNumber) => {
-    for (let c = 1; c <= 7; c++) {
+    for (let c = 1; c <= lastCol; c++) {
       const cell = row.getCell(c)
       cell.border = { top: border, left: border, bottom: border, right: border }
       if (rowNumber <= 2) {
@@ -168,8 +212,43 @@ export default function TikTokStatsPage() {
   const [lines, setLines]     = useState(() => [newLine()])
   const [results, setResults] = useState<ResultRow[]>([])
   const [running, setRunning] = useState(false)
+  const [loaded, setLoaded]   = useState(false)
+  const [expiresAt, setExpiresAt] = useState<Date | null>(null)
   const inputRefs             = useRef(new Map<number, HTMLInputElement>())
   const abortRef              = useRef<AbortController | null>(null)
+  const saveQueue             = useRef<Promise<void>>(Promise.resolve())
+
+  /* ── Saved results (kept in the DB for TIKTOK_RESULTS_TTL) ── */
+  useEffect(() => {
+    fetch('/api/tiktok-results')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { rows: ResultRow[]; expiresAt: string | null } | null) => {
+        if (!data?.rows.length) return
+        setResults(data.rows)
+        setLines(data.rows.map((r) => newLine(r.url)))
+        setExpiresAt(data.expiresAt ? new Date(data.expiresAt) : null)
+      })
+      .catch(() => toast.error('Không tải được kết quả đã lưu'))
+      .finally(() => setLoaded(true))
+  }, [])
+
+  // Saves are chained so a slow request can never overwrite a newer table
+  const save = (rows: ResultRow[]) => {
+    saveQueue.current = saveQueue.current.then(async () => {
+      try {
+        const res = await fetch('/api/tiktok-results', {
+          method:  'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ rows }),
+        })
+        if (!res.ok) throw new Error()
+        const data = await res.json()
+        setExpiresAt(new Date(data.expiresAt))
+      } catch {
+        toast.error('Không lưu được kết quả', { id: 'tiktok-save-failed' })
+      }
+    })
+  }
 
   const filled = lines.filter((l) => l.value.trim()).length
 
@@ -225,7 +304,13 @@ export default function TikTokStatsPage() {
     const first = newLine()
     setLines([first])
     setResults([])
+    setExpiresAt(null)
     focusLine(first.id)
+    saveQueue.current = saveQueue.current.then(() =>
+      fetch('/api/tiktok-results', { method: 'DELETE' })
+        .then(() => undefined)
+        .catch(() => { toast.error('Không xóa được kết quả đã lưu') }),
+    )
   }
 
   /* ── Run ── */
@@ -233,7 +318,15 @@ export default function TikTokStatsPage() {
     const controller = new AbortController()
     abortRef.current = controller
     setRunning(true)
-    setResults(rows)
+
+    // The run owns the table while it's going; every change is mirrored to state
+    let current = rows
+    const update = (i: number, patch: Partial<ResultRow>) => {
+      current = current.map((r, j) => (j === i ? { ...r, ...patch } : r))
+      setResults(current)
+    }
+    setResults(current)
+    save(current)
 
     let lastHitTikTok = false
     let blockedStreak = 0
@@ -243,7 +336,7 @@ export default function TikTokStatsPage() {
       if (lastHitTikTok) await sleep(REQUEST_DELAY_MS, controller.signal)
       if (controller.signal.aborted) break
 
-      setResults((prev) => prev.map((r, j) => (j === i ? { ...r, status: 'loading', error: undefined } : r)))
+      update(i, { status: 'loading', error: undefined })
       let patch: Partial<ResultRow>
       try {
         const res = await fetch(`/api/tiktok-stats?url=${encodeURIComponent(rows[i].url)}`)
@@ -267,7 +360,8 @@ export default function TikTokStatsPage() {
         patch = { status: 'error', error: 'Lỗi mạng' }
         lastHitTikTok = true
       }
-      setResults((prev) => prev.map((r, j) => (j === i ? { ...r, ...patch } : r)))
+      update(i, patch)
+      save(current)
 
       // Hammering TikTok while it blocks us only extends the block — stop and let the user retry later
       if (blockedStreak >= MAX_BLOCKED_STREAK) {
@@ -277,7 +371,9 @@ export default function TikTokStatsPage() {
     }
 
     // Anything left untouched after a stop goes back to pending
-    setResults((prev) => prev.map((r) => (r.status === 'loading' ? { ...r, status: 'pending' } : r)))
+    current = current.map((r) => (r.status === 'loading' ? { ...r, status: 'pending' } : r))
+    setResults(current)
+    save(current)
     setRunning(false)
     abortRef.current = null
     if (!controller.signal.aborted) toast.success('Đã chạy xong')
@@ -352,11 +448,11 @@ export default function TikTokStatsPage() {
                   <Square /> Dừng
                 </Button>
               ) : (
-                <Button onClick={startRun} disabled={filled === 0}>
+                <Button onClick={startRun} disabled={!loaded || filled === 0}>
                   <Play /> Chạy
                 </Button>
               )}
-              <Button variant="ghost" onClick={clearAll} disabled={running}>
+              <Button variant="ghost" onClick={clearAll} disabled={running || !loaded}>
                 <Trash2 /> Xóa hết
               </Button>
             </div>
@@ -377,6 +473,12 @@ export default function TikTokStatsPage() {
                     ? 'Chưa có dữ liệu'
                     : `${done} thành công · ${failed} lỗi${pending ? ` · ${pending} đang chờ` : ''}`}
                 </p>
+                {expiresAt && results.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Lưu {TIKTOK_RESULTS_TTL / 3600} giờ, tự xóa lúc{' '}
+                    {expiresAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                )}
               </div>
               <div className="flex gap-2">
                 {!running && failed + pending > 0 && done + failed > 0 && (
@@ -400,19 +502,24 @@ export default function TikTokStatsPage() {
                   <tr>
                     <th rowSpan={2} className="border-b border-r px-2 py-1.5 font-semibold">STT</th>
                     <th rowSpan={2} className="border-b border-r px-2 py-1.5 text-left font-semibold">Link</th>
-                    <th colSpan={5} className="border-b px-2 py-1.5 font-semibold">Results</th>
+                    <th colSpan={METRICS.length} className="border-b px-2 py-1.5 font-semibold">Results</th>
                   </tr>
                   <tr>
-                    {['View', 'Like', 'CMT', 'Added to Favorites', 'Share'].map((h) => (
-                      <th key={h} className="border-b border-r px-2 py-1.5 font-semibold last:border-r-0">{h}</th>
+                    {METRICS.map((m) => (
+                      <th key={m.key} className="border-b border-r px-2 py-1.5 font-semibold last:border-r-0">
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span>{m.label}</span>
+                          <CopyColumnButton rows={results} metric={m} />
+                        </div>
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {results.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                        Nhập link bên trái rồi bấm Chạy
+                      <td colSpan={2 + METRICS.length} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                        {loaded ? 'Nhập link bên trái rồi bấm Chạy' : 'Đang tải kết quả đã lưu…'}
                       </td>
                     </tr>
                   ) : (
@@ -430,11 +537,11 @@ export default function TikTokStatsPage() {
                           </a>
                         </td>
                         {r.stats ? (
-                          [r.stats.views, r.stats.likes, r.stats.comments, r.stats.favorites, r.stats.shares].map((v, j) => (
-                            <td key={j} className="border-r px-2 py-2 text-center tabular-nums last:border-r-0">{fmt(v)}</td>
+                          METRICS.map((m) => (
+                            <td key={m.key} className="border-r px-2 py-2 text-center tabular-nums last:border-r-0">{fmt(r.stats?.[m.key])}</td>
                           ))
                         ) : (
-                          <td colSpan={5} className={cn('px-2 py-2 text-center text-xs', r.status === 'error' ? 'text-destructive' : 'text-muted-foreground')}>
+                          <td colSpan={METRICS.length} className={cn('px-2 py-2 text-center text-xs', r.status === 'error' ? 'text-destructive' : 'text-muted-foreground')}>
                             {r.status === 'error' ? r.error : r.status === 'loading' ? 'Đang lấy…' : 'Đang chờ'}
                           </td>
                         )}
