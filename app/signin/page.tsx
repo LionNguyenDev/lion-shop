@@ -30,7 +30,8 @@ export default function SignInPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Đăng nhập thất bại')
       toast.success(`Chào mừng trở lại, ${data.user.name}! 👋`)
-      router.push('/')
+      // Friends only have the TikTok tool; admins are sent on to /admin by the middleware
+      router.push(data.user.role === 'friend' ? '/tiktok' : '/')
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Đăng nhập thất bại')

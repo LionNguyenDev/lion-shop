@@ -1,11 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { AUTH_COOKIE, verifySession } from '@/lib/auth'
+import { AUTH_COOKIE, canUseTikTok, verifySession } from '@/lib/auth'
 
 /** Pages that are reachable only when logged out */
 const PUBLIC_PATHS = ['/', '/signin', '/signup']
 
 /** Pages that require admin role */
 const ADMIN_PATHS = ['/admin', '/admin/orders', '/admin/products', '/admin/settings']
+
+/** Pages that require a role allowed by canUseTikTok (friend / admin) */
+const TIKTOK_PATHS = ['/tiktok']
 
 /** Pages/prefixes the middleware should NOT touch */
 function isAsset(pathname: string) {
@@ -17,8 +20,12 @@ function isAsset(pathname: string) {
   )
 }
 
+function matches(paths: string[], pathname: string) {
+  return paths.some((p) => pathname === p || pathname.startsWith(p + '/'))
+}
+
 function isAdminPath(pathname: string) {
-  return ADMIN_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))
+  return matches(ADMIN_PATHS, pathname)
 }
 
 export async function middleware(req: NextRequest) {
@@ -46,6 +53,11 @@ export async function middleware(req: NextRequest) {
 
   // Logged in but not admin, trying to access admin pages → go to home page
   if (session && session.role !== 'admin' && isAdminPath(pathname)) {
+    return NextResponse.redirect(new URL('/', req.url))
+  }
+
+  // Logged in but without the friend (or admin) role, trying to use the TikTok tool → go to home page
+  if (session && !canUseTikTok(session.role) && matches(TIKTOK_PATHS, pathname)) {
     return NextResponse.redirect(new URL('/', req.url))
   }
 

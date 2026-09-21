@@ -9,6 +9,12 @@ export type Warehouse = keyof typeof WAREHOUSES
 /** Số ngày đơn hàng nằm trong thùng rác trước khi MongoDB TTL xóa vĩnh viễn. */
 export const TRASH_RETENTION_DAYS = 10
 
+/**
+ * How long a cached TikTok stat stays valid (seconds).
+ * Changing this needs `npm run migrate:tiktok-cache` — Mongoose won't update an existing TTL index.
+ */
+export const TIKTOK_CACHE_TTL = 10 * 60
+
 export interface Product {
   _id: string
   name: string

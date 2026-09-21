@@ -1,6 +1,8 @@
 import mongoose, { type Document, type Model, Schema } from 'mongoose'
 
-export type UserRole = 'admin' | 'user'
+export type UserRole = 'admin' | 'user' | 'friend'
+
+export const USER_ROLES: UserRole[] = ['admin', 'user', 'friend']
 
 export interface IUser extends Document {
   name: string
@@ -16,7 +18,7 @@ const UserSchema: Schema = new Schema(
     name:     { type: String, required: true, trim: true },
     username: { type: String, required: true, unique: true, lowercase: true, trim: true, minlength: 3 },
     password: { type: String, required: true, minlength: 6 },
-    role:     { type: String, enum: ['admin', 'user'], default: 'user' },
+    role:     { type: String, enum: USER_ROLES, default: 'user' },
   },
   { timestamps: true },
 )

@@ -17,6 +17,13 @@ export interface SessionPayload {
   [key: string]: unknown  // jose payload requires index signature
 }
 
+/** Roles allowed to use the TikTok stats tool (/tiktok) */
+export const TIKTOK_ROLES: UserRole[] = ['friend', 'admin']
+
+export function canUseTikTok(role: UserRole | undefined): boolean {
+  return !!role && TIKTOK_ROLES.includes(role)
+}
+
 export async function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, 10)
 }
