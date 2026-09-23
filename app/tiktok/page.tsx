@@ -62,6 +62,9 @@ const sleep = (ms: number, signal: AbortSignal) =>
     signal.addEventListener('abort', () => { clearTimeout(t); resolve() }, { once: true })
   })
 
+/** Wrapped so the React compiler doesn't see Date.now() called inside the component */
+const nowMs = () => Date.now()
+
 const fmtTime = (ms: number) =>
   new Date(ms).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
 
@@ -298,15 +301,21 @@ export default function TikTokStatsPage() {
   // Saves are chained so a slow request can never overwrite a newer table
   const save = (all: ResultRow[]) => {
     const rows = all.filter((r) => r.runAt > clearedAt).slice(-TIKTOK_MAX_SAVED_ROWS)
-    if (rows.length === 0) return
     saveQueue.current = saveQueue.current.then(async () => {
       try {
-        const res = await fetch('/api/tiktok-results', {
-          method:  'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ rows }),
-        })
+        // Nothing left to save → drop the saved copy, so deleted rows don't come back on reload
+        const res = rows.length
+          ? await fetch('/api/tiktok-results', {
+              method:  'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body:    JSON.stringify({ rows }),
+            })
+          : await fetch('/api/tiktok-results', { method: 'DELETE' })
         if (!res.ok) throw new Error()
+        if (!rows.length) {
+          setExpiresAt(null)
+          return
+        }
         const data = await res.json()
         setExpiresAt(new Date(data.expiresAt))
       } catch {
@@ -457,7 +466,7 @@ export default function TikTokStatsPage() {
       return
     }
     // Each run is appended below the previous ones
-    const runAt = Date.now()
+    const runAt = nowMs()
     run(
       [...results, ...urls.map((url): ResultRow => ({ url, runAt, status: 'pending' }))],
       urls.map((_, i) => results.length + i),
@@ -467,6 +476,12 @@ export default function TikTokStatsPage() {
   const retryFailed = () => {
     const failed = results.flatMap((r, i) => (r.status === 'error' || r.status === 'pending' ? [i] : []))
     run(results, failed)
+  }
+
+  const deleteRow = (index: number) => {
+    const next = results.filter((_, i) => i !== index)
+    setResults(next)
+    save(next)
   }
 
   /** Copies a single cell, so it can be pasted into one (possibly merged) Excel cell */
@@ -602,7 +617,8 @@ export default function TikTokStatsPage() {
                         </div>
                       </th>
                     ))}
-                    <th colSpan={METRICS.length} className="border-b px-2 py-1.5 font-semibold">Results</th>
+                    <th colSpan={METRICS.length} className="border-b border-r px-2 py-1.5 font-semibold">Results</th>
+                    <th rowSpan={2} className="border-b px-2 py-1.5 font-semibold">Action</th>
                   </tr>
                   <tr>
                     {METRICS.map((m) => (
@@ -618,7 +634,7 @@ export default function TikTokStatsPage() {
                 <tbody className="divide-y">
                   {results.length === 0 ? (
                     <tr>
-                      <td colSpan={2 + TEXT_FIELDS.length + METRICS.length} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                      <td colSpan={3 + TEXT_FIELDS.length + METRICS.length} className="px-4 py-10 text-center text-sm text-muted-foreground">
                         {loaded ? 'Nhập link ở trên rồi bấm Chạy' : 'Đang tải kết quả đã lưu…'}
                       </td>
                     </tr>
@@ -631,7 +647,7 @@ export default function TikTokStatsPage() {
                       {newRun && (
                         <tr>
                           <td
-                            colSpan={2 + TEXT_FIELDS.length + METRICS.length}
+                            colSpan={3 + TEXT_FIELDS.length + METRICS.length}
                             className={cn('bg-muted/60 px-3 py-1 text-xs font-medium text-muted-foreground', i > 0 && 'border-t-2 border-foreground/25')}
                           >
                             {r.runAt ? `Lần chạy lúc ${fmtTime(r.runAt)}` : 'Lần chạy trước'} · {runSize} link
@@ -674,7 +690,7 @@ export default function TikTokStatsPage() {
                                 key={m.key}
                                 onClick={() => copyCell(cellKey, value)}
                                 title={value === undefined ? undefined : 'Bấm để copy'}
-                                className={cn(cellClass(cellKey, value !== undefined), 'text-center tabular-nums last:border-r-0')}
+                                className={cn(cellClass(cellKey, value !== undefined), 'text-center tabular-nums')}
                               >
                                 {fmt(value)}
                               </td>
@@ -685,6 +701,19 @@ export default function TikTokStatsPage() {
                             {r.status === 'error' ? r.error : r.status === 'loading' ? 'Đang lấy…' : 'Đang chờ'}
                           </td>
                         )}
+                        <td className="px-2 py-2 text-center">
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            disabled={running}
+                            onClick={() => deleteRow(i)}
+                            title="Xóa dòng này"
+                            aria-label="Xóa dòng này"
+                            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 />
+                          </Button>
+                        </td>
                       </tr>
                       </Fragment>
                       )
