@@ -1,11 +1,22 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Fira_Sans, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/lib/providers'
 import { AdminBanner } from '@/components/AdminBanner'
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
-const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
+// Fira Sans ships a Vietnamese subset; Fira Code (the paired heading font) does not,
+// so JetBrains Mono covers numbers and code instead.
+const firaSans = Fira_Sans({
+  variable: '--font-fira-sans',
+  subsets:  ['latin', 'latin-ext', 'vietnamese'],
+  weight:   ['300', '400', '500', '600', '700'],
+  display:  'swap',
+})
+const jetbrainsMono = JetBrains_Mono({
+  variable: '--font-jetbrains-mono',
+  subsets:  ['latin', 'latin-ext', 'vietnamese'],
+  display:  'swap',
+})
 
 export const metadata: Metadata = {
   title: 'Lion Shop',          // ← đổi tên hiển thị trên tab ở đây
@@ -16,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${firaSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full bg-background text-foreground">

@@ -94,7 +94,7 @@ function KpiCard({
   const zero     = delta != null && delta === 0
 
   return (
-    <Card className="border-border/50 bg-card/70 backdrop-blur-md">
+    <Card>
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
           <div className="min-w-0 flex-1">
@@ -102,7 +102,7 @@ function KpiCard({
             {loading ? (
               <Skeleton className="mt-2 h-8 w-32" />
             ) : (
-              <p className={cn('mt-1 text-2xl font-bold tracking-tight tabular-nums truncate', valueNegative && 'text-red-600 dark:text-red-400')}>{value}</p>
+              <p className={cn('mt-1 font-mono text-2xl font-semibold tracking-tight tabular-nums truncate', valueNegative && 'text-red-600 dark:text-red-400')}>{value}</p>
             )}
             {loading ? (
               <Skeleton className="mt-2 h-4 w-20" />
@@ -175,6 +175,8 @@ export function StatsSection() {
   const [metric, setMetric]     = useState<Metric>('revenue')
   const [data, setData]         = useState<StatsResult | null>(null)
   const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo]     = useState('')
 
@@ -186,16 +188,21 @@ export function StatsSection() {
     if (dateFrom && !dateTo) return   // wait until both are set
     let cancelled = false
     setLoading(true)
+    setError(false)
     const url = isCustom
       ? `/api/stats?from=${dateFrom}&to=${dateTo}`
       : `/api/stats?range=${range}`
     fetch(url)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error('Request failed')
+        return r.json()
+      })
       .then((d: StatsResult) => { if (!cancelled) setData(d) })
-      .catch(() => {})
+      // Without this the chart would just sit empty, looking like "no sales"
+      .catch(() => { if (!cancelled) setError(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [range, dateFrom, dateTo, isCustom])
+  }, [range, dateFrom, dateTo, isCustom, reloadKey])
 
   const bucketFormat = data?.bucketFormat ?? 'day'
 
@@ -324,7 +331,7 @@ export function StatsSection() {
       </div>
 
       {/* Chart */}
-      <Card className="border-border/50 bg-card/70 backdrop-blur-md">
+      <Card>
         <CardContent className="p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-semibold">
@@ -363,6 +370,13 @@ export function StatsSection() {
 
           {loading ? (
             <Skeleton className="h-70 w-full" />
+          ) : error ? (
+            <div className="flex h-70 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+              <p>Không tải được số liệu thống kê.</p>
+              <Button size="sm" variant="outline" onClick={() => setReloadKey((k) => k + 1)}>
+                Thử lại
+              </Button>
+            </div>
           ) : chartData.length === 0 ? (
             <div className="flex h-70 items-center justify-center text-sm text-muted-foreground">
               Chưa có dữ liệu cho khoảng thời gian này
@@ -371,11 +385,19 @@ export function StatsSection() {
             <div
               className="h-70 w-full"
               style={{
-                '--color-chart-revenue': 'oklch(0.696 0.17 162.48)',
-                '--color-chart-profit':  'oklch(0.769 0.188 70.08)',
-                '--color-chart-loss':    'oklch(0.704 0.191 22.216)',
+                '--color-chart-revenue': 'var(--chart-1)',
+                '--color-chart-profit':  'var(--chart-3)',
+                '--color-chart-loss':    'var(--destructive)',
               } as React.CSSProperties}
             >
+              <p className="sr-only">
+                {metric === 'revenue' ? 'Biểu đồ doanh thu' : 'Biểu đồ lãi lỗ'} theo{' '}
+                {bucketFormat === 'hour' ? 'giờ' : bucketFormat === 'day' ? 'ngày' : 'tháng'}, gồm{' '}
+                {chartData.length} mốc. Tổng:{' '}
+                {metric === 'revenue'
+                  ? formatVND(data?.current.revenue ?? 0)
+                  : formatProfit(data?.current.profit ?? 0)}.
+              </p>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 5, right: 12, left: -8, bottom: 0 }}>
                   <defs>
@@ -384,11 +406,11 @@ export function StatsSection() {
                       <stop offset="100%" stopColor={chartColor} stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.4} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.4} />
                   <XAxis
                     dataKey="bucket"
                     tickFormatter={(b) => formatBucketLabel(b, bucketFormat)}
-                    stroke="hsl(var(--muted-foreground))"
+                    stroke="var(--muted-foreground)"
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}
@@ -396,7 +418,7 @@ export function StatsSection() {
                   />
                   <YAxis
                     tickFormatter={(v) => compactVND.format(v) + '₫'}
-                    stroke="hsl(var(--muted-foreground))"
+                    stroke="var(--muted-foreground)"
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}

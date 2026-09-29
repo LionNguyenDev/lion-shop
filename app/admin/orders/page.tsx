@@ -13,6 +13,7 @@ import OrderDetailModal from '@/components/OrderDetailModal'
 import { formatProfit, formatVND } from '@/lib/format'
 import { Order, statusOrders, statusOrdersVN, TRASH_RETENTION_DAYS } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { BADGE_SIZE, NUMERIC, profitClass, statusBadgeClass } from '@/lib/orderStyles'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { DateInput } from '@/components/ui/date-input'
@@ -53,10 +54,6 @@ function todayISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-const statusBadgeClass: Record<string, string> = {
-  [statusOrders.UNPAID]: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30',
-  [statusOrders.PAID]:   'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
-}
 
 interface OrderStats { total: number; unpaid: number; paid: number; revenue: number }
 
@@ -122,9 +119,9 @@ export default function OrdersPage() {
   const unpaidCount = serverStats.unpaid
 
   const stats = useMemo(() => [
-    { label: 'Tổng cộng',       value: serverStats.total,  color: 'text-foreground', bar: 'bg-primary' },
-    { label: 'Chưa thanh toán', value: serverStats.unpaid, color: 'text-red-600 dark:text-red-400',         bar: 'bg-red-500 dark:bg-red-400' },
-    { label: 'Đã thanh toán',   value: serverStats.paid,   color: 'text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500 dark:bg-emerald-400' },
+    { label: 'Tổng cộng',       value: serverStats.total,  color: 'text-foreground',    bar: 'bg-primary' },
+    { label: 'Chưa thanh toán', value: serverStats.unpaid, color: 'text-destructive',   bar: 'bg-destructive' },
+    { label: 'Đã thanh toán',   value: serverStats.paid,   color: 'text-success',       bar: 'bg-success' },
   ], [serverStats])
 
   const handleCreateSuccess = (order: Order) => { setCreatedOrder(order); setShowCreatedProfit(false); setCreateModal('success'); fetchOrders(true) }
@@ -233,7 +230,7 @@ export default function OrdersPage() {
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground">{s.label}</p>
                   <div className="mt-1 flex items-end justify-between">
-                    <p className={cn('text-2xl font-bold tabular-nums', s.color)}>
+                    <p className={cn('text-2xl font-bold', NUMERIC, s.color)}>
                       {s.value.toLocaleString('vi-VN')}
                     </p>
                     <span className={cn('mb-1 h-1 w-6 rounded-full', s.bar)} />
@@ -379,13 +376,13 @@ export default function OrdersPage() {
           {createModal === 'success' && createdOrder && (
             <div className="space-y-5 py-2">
               <div className="text-center space-y-1">
-                <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
+                <CheckCircle className="w-12 h-12 text-success mx-auto" />
                 <h2 className="text-xl font-bold">Đơn hàng đã được tạo!</h2>
                 <p className="text-muted-foreground text-sm">{new Date(createdOrder.createdAt).toLocaleString('vi-VN')}</p>
               </div>
               <div className="flex items-center justify-between p-3 bg-muted/40 rounded-lg border">
-                <span className="text-xs font-mono text-muted-foreground">#{createdOrder._id.slice(-10).toUpperCase()}</span>
-                <Badge variant="outline" className={cn('text-xs font-bold uppercase', statusBadgeClass[createdOrder.status] ?? 'bg-slate-100 text-slate-600')}>
+                <span className={cn('text-xs text-muted-foreground', NUMERIC)}>#{createdOrder._id.slice(-10).toUpperCase()}</span>
+                <Badge variant="outline" className={cn(BADGE_SIZE, 'uppercase', statusBadgeClass(createdOrder.status))}>
                   {createdOrder.status}
                 </Badge>
               </div>
@@ -402,22 +399,22 @@ export default function OrdersPage() {
                     <div key={i} className="flex items-center justify-between px-3 py-2 bg-card text-sm">
                       <span className="flex flex-col">
                         <span><span className="font-semibold">{item.quantity}×</span> {item.name}</span>
-                        <span className="text-xs text-muted-foreground/70">{formatVND(item.price)}/sản phẩm</span>
+                        <span className={cn('text-xs text-muted-foreground/70', NUMERIC)}>{formatVND(item.price)}/sản phẩm</span>
                       </span>
-                      <span className="text-muted-foreground">{formatVND(item.price * item.quantity)}</span>
+                      <span className={cn('text-muted-foreground', NUMERIC)}>{formatVND(item.price * item.quantity)}</span>
                     </div>
                   ))}
                 </div>
               </div>
               <div className="flex items-center justify-between py-2 border-t">
                 <span className="font-semibold">Tổng cộng</span>
-                <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{formatVND(createdOrder.totalAmount)}</span>
+                <span className={cn('text-lg font-bold text-success', NUMERIC)}>{formatVND(createdOrder.totalAmount)}</span>
               </div>
               {showCreatedProfit ? (
                 <div className={cn(
                   'flex items-center justify-between px-3 py-2 rounded-lg border',
-                  createdOrder.profit > 0 && 'bg-emerald-500/10 border-emerald-500/30',
-                  createdOrder.profit < 0 && 'bg-red-500/10 border-red-500/30',
+                  createdOrder.profit > 0 && 'bg-success/10 border-success/30',
+                  createdOrder.profit < 0 && 'bg-destructive/10 border-destructive/30',
                   createdOrder.profit === 0 && 'bg-muted/40',
                 )}>
                   <span className="text-sm font-semibold">
@@ -425,9 +422,7 @@ export default function OrdersPage() {
                   </span>
                   <div className="flex items-center gap-2">
                     <span className={cn(
-                      'text-base font-bold tabular-nums',
-                      createdOrder.profit > 0 && 'text-emerald-600 dark:text-emerald-400',
-                      createdOrder.profit < 0 && 'text-red-600 dark:text-red-400',
+                      'text-base font-bold', NUMERIC, profitClass(createdOrder.profit),
                     )}>
                       {formatProfit(createdOrder.profit)}
                     </span>

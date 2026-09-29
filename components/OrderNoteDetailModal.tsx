@@ -33,13 +33,13 @@ export default function OrderNoteDetailModal({ note, onClose }: OrderNoteDetailM
         <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-lg border px-3 py-2">
-              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+              <p className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
                 <Hash className="w-3 h-3" /> Mã đơn
               </p>
               <p className="font-mono text-sm font-semibold">{note.orderCode}</p>
             </div>
             <div className="rounded-lg border px-3 py-2">
-              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+              <p className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
                 <Clock className="w-3 h-3" /> Thời gian
               </p>
               <p className="text-sm font-medium">{new Date(note.createdAt).toLocaleString('vi-VN')}</p>
@@ -49,10 +49,10 @@ export default function OrderNoteDetailModal({ note, onClose }: OrderNoteDetailM
           {/* Products list */}
           <div className="rounded-lg border overflow-hidden">
             <div className="flex items-center justify-between px-3 py-1.5 bg-muted/30 border-b">
-              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <Package className="w-3 h-3" /> Sản phẩm
               </p>
-              <p className="text-[10px] text-muted-foreground tabular-nums">
+              <p className="text-xs text-muted-foreground tabular-nums">
                 {note.products.length} loại · {totalQty} cái
               </p>
             </div>
@@ -69,7 +69,7 @@ export default function OrderNoteDetailModal({ note, onClose }: OrderNoteDetailM
           </div>
 
           <div className="rounded-lg border bg-amber-500/5 border-amber-500/20 px-3 py-2.5">
-            <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400 mb-1.5">
+            <p className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400 mb-1.5">
               <StickyNote className="w-3 h-3" /> Note
             </p>
             <p className="text-sm whitespace-pre-wrap leading-relaxed">{note.note}</p>

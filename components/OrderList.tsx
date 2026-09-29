@@ -1,11 +1,14 @@
 'use client'
 
-import { CheckCheck, Pencil, RotateCcw, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { CheckCheck, ChevronDown, ChevronUp, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 import { formatProfit, formatVND, trashDaysLeft } from '@/lib/format'
 import { Order, statusOrders, statusOrdersVN, TRASH_RETENTION_DAYS } from '@/lib/types'
+import { BADGE_SIZE, NUMERIC, RESTORED_BADGE, profitClass, statusBadgeClass, statusDotClass } from '@/lib/orderStyles'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Table,
   TableBody,
@@ -30,9 +33,64 @@ interface OrderListProps {
   onPurge?: (order: Order) => void
 }
 
-const statusConfig: Record<string, { dot: string; badge: string }> = {
-  [statusOrders.UNPAID]: { dot: 'bg-red-500',     badge: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30' },
-  [statusOrders.PAID]:   { dot: 'bg-emerald-500', badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30' },
+
+/** Rows with long carts collapse to this many lines; the rest is one click (or hover) away */
+const COLLAPSED_ITEMS = 3
+/** Cap on how many lines the hover tooltip lists, so it can't grow past the viewport */
+const TOOLTIP_ITEMS = 15
+
+function OrderItems({ items, expanded, onToggle }: {
+  items: Order['items']
+  expanded: boolean
+  onToggle: () => void
+}) {
+  const hiddenCount = items.length - COLLAPSED_ITEMS
+  const shown       = expanded ? items : items.slice(0, COLLAPSED_ITEMS)
+
+  const line = (item: Order['items'][number], i: number) => (
+    <p key={i} className="truncate text-sm leading-snug">
+      <span className="font-medium">{item.name}</span>
+      <span className={cn('text-muted-foreground', NUMERIC)}> x{item.quantity}</span>
+    </p>
+  )
+
+  return (
+    <div className="min-w-0 space-y-0.5">
+      {shown.map(line)}
+
+      {hiddenCount > 0 && (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                aria-expanded={expanded}
+                // The row itself opens the detail modal, so the toggle must swallow the click
+                onClick={(e) => { e.stopPropagation(); onToggle() }}
+                className="mt-1 inline-flex items-center gap-1 rounded-md border border-dashed px-1.5 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:border-solid hover:bg-muted hover:text-foreground"
+              />
+            }
+          >
+            {expanded ? (
+              <><ChevronUp className="h-3 w-3" /> Thu gọn</>
+            ) : (
+              <><ChevronDown className="h-3 w-3" /> +{hiddenCount} sản phẩm khác</>
+            )}
+          </TooltipTrigger>
+          <TooltipContent side="right" className="max-w-sm items-start">
+            <div className="space-y-0.5 py-0.5">
+              {items.slice(0, TOOLTIP_ITEMS).map((item, i) => (
+                <p key={i}>{item.name} <span className={NUMERIC}>x{item.quantity}</span></p>
+              ))}
+              {items.length > TOOLTIP_ITEMS && (
+                <p className="opacity-70">… và {items.length - TOOLTIP_ITEMS} sản phẩm nữa</p>
+              )}
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </div>
+  )
 }
 
 function Initials({ name }: { name?: string }) {
@@ -60,6 +118,9 @@ export default function OrderList({
   onPurge,
 }: OrderListProps) {
   const isTrash = mode === 'trash'
+  // Which rows have their full product list open
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
+
   const selectable = !isTrash && !!onSelectionChange
   const columnCount = selectable ? 7 : 6
   const allSelected = orders.length > 0 && orders.every((o) => selectedIds.has(o._id))
@@ -77,6 +138,14 @@ export default function OrderList({
       onSelectionChange(next)
     }
   }
+
+  const toggleItems = (id: string) =>
+    setExpandedItems((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
 
   const toggleOne = (id: string) => {
     if (!onSelectionChange) return
@@ -125,7 +194,6 @@ export default function OrderList({
             const isChecked = selectedIds.has(order._id)
             // Đơn từng bị xóa rồi khôi phục — tô nền xanh lá nhạt để dễ nhận ra
             const isRestored = !isTrash && !!order.restoredAt
-            const cfg      = statusConfig[order.status] ?? { dot: 'bg-slate-400', badge: 'bg-slate-100 text-slate-600 border-slate-200' }
 
             return (
               <TableRow
@@ -133,8 +201,8 @@ export default function OrderList({
                 className={cn(
                   'group',
                   onRowClick && 'cursor-pointer transition-colors',
-                  onRowClick && (isRestored ? 'hover:bg-emerald-500/20' : 'hover:bg-muted/50'),
-                  isRestored && 'bg-emerald-500/10',
+                  onRowClick && (isRestored ? 'hover:bg-success/20' : 'hover:bg-muted/50'),
+                  isRestored && 'bg-success/10',
                   isChecked && 'bg-muted/40',
                 )}
                 onClick={() => onRowClick?.(order)}
@@ -152,17 +220,12 @@ export default function OrderList({
                 )}
 
                 {/* Sản phẩm */}
-                <TableCell className={cn('py-3', !selectable && 'pl-4')}>
-                  <div className="flex items-start gap-3">
-                    <div className="min-w-0 space-y-0.5">
-                      {order.items.map((item, i) => (
-                        <p key={i} className="text-sm leading-snug">
-                          <span className="font-medium">{item.name}</span>
-                          <span className="text-muted-foreground"> x{item.quantity}</span>
-                        </p>
-                      ))}
-                    </div>
-                  </div>
+                <TableCell className={cn('max-w-72 py-3 align-top', !selectable && 'pl-4')}>
+                  <OrderItems
+                    items={order.items}
+                    expanded={expandedItems.has(order._id)}
+                    onToggle={() => toggleItems(order._id)}
+                  />
                 </TableCell>
 
                 {/* Khách hàng */}
@@ -183,25 +246,23 @@ export default function OrderList({
 
                 {/* Mã đơn hàng */}
                 <TableCell className="py-3">
-                  <p className="font-mono text-sm font-semibold text-foreground">
+                  <p className={cn('text-sm font-semibold text-foreground', NUMERIC)}>
                     {new Date(order.createdAt).toLocaleDateString('vi-VN')}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className={cn('mt-0.5 text-xs text-muted-foreground', NUMERIC)}>
                     #{order._id.slice(-10).toUpperCase()}
                   </p>
                 </TableCell>
 
                 {/* Số tiền */}
                 <TableCell className="py-3">
-                  <p className="text-sm font-bold tabular-nums">{formatVND(order.totalAmount)}</p>
-                  <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
+                  <p className={cn('text-sm font-bold', NUMERIC)}>{formatVND(order.totalAmount)}</p>
+                  <p className={cn('mt-0.5 text-xs text-muted-foreground', NUMERIC)}>
                     Vốn: {formatVND(order.totalAmount - order.profit)}
                   </p>
                   <p className={cn(
-                    'text-[11px] font-semibold tabular-nums',
-                    order.profit > 0 && 'text-emerald-600 dark:text-emerald-400',
-                    order.profit < 0 && 'text-red-500 dark:text-red-400',
-                    order.profit === 0 && 'text-muted-foreground',
+                    'text-xs font-semibold', NUMERIC,
+                    profitClass(order.profit) || 'text-muted-foreground',
                   )}>
                     {order.profit >= 0 ? 'Lãi' : 'Lỗ'}: {formatProfit(order.profit)}
                   </p>
@@ -220,10 +281,10 @@ export default function OrderList({
                           <Badge
                             variant="outline"
                             className={cn(
-                              'font-medium',
+                              BADGE_SIZE,
                               daysLeft <= 2
-                                ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30'
-                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 dark:border-amber-500/30',
+                                ? 'bg-destructive/10 text-destructive border-destructive/25'
+                                : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25',
                             )}
                           >
                             {daysLeft === 0 ? 'Sắp bị xóa' : `Còn ${daysLeft} ngày`}
@@ -233,15 +294,15 @@ export default function OrderList({
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      <Badge variant="outline" className={cn('gap-1.5 font-medium', cfg.badge)}>
-                        <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', cfg.dot)} />
+                      <Badge variant="outline" className={cn('gap-1.5', BADGE_SIZE, statusBadgeClass(order.status))}>
+                        <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', statusDotClass(order.status))} />
                         {statusOrdersVN[order.status] || order.status}
                       </Badge>
                       {isRestored && (
                         <Badge
                           variant="outline"
                           title={`Khôi phục từ thùng rác lúc ${new Date(order.restoredAt as string).toLocaleString('vi-VN')}`}
-                          className="gap-1 font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30"
+                          className={cn('gap-1', BADGE_SIZE, RESTORED_BADGE)}
                         >
                           <RotateCcw className="h-3 w-3" /> Đã khôi phục
                         </Badge>
@@ -285,7 +346,7 @@ export default function OrderList({
                           disabled={isPaid}
                           onClick={() => onComplete?.(order)}
                           title="Đánh dấu hoàn thành"
-                          className="hover:text-green-600 hover:bg-emerald-500/10 dark:hover:text-emerald-400"
+                          className="hover:text-success hover:bg-success/10"
                         >
                           <CheckCheck />
                         </Button>

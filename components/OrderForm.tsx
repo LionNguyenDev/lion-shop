@@ -8,6 +8,7 @@ import { Customer, Order, Product, statusOrders, WAREHOUSES, Warehouse } from '@
 import VndInput from './VndInput'
 import { ProductSearch, useDebouncedValue, warehouseStockKey } from './ProductSearch'
 import { cn } from '@/lib/utils'
+import { NUMERIC } from '@/lib/orderStyles'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -235,8 +236,8 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
             Khách hàng <span className="font-normal normal-case text-muted-foreground/70">(tuỳ chọn)</span>
           </p>
           {autoFilled && (
-            <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" /> Tự động điền
+            <span className="flex items-center gap-1 text-xs font-medium text-success">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-success" /> Tự động điền
             </span>
           )}
         </div>
@@ -301,7 +302,7 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
 
               {/* Row 2: chọn kho + chỉnh tồn kho inline */}
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-[11px] text-muted-foreground shrink-0">Kho:</p>
+                <p className="text-xs text-muted-foreground shrink-0">Kho:</p>
                 {(Object.entries(WAREHOUSES) as [Warehouse, string][]).map(([key, label]) => {
                   const stockField = warehouseStockKey[key]
                   const stock = selected ? (selected[stockField] ?? 0) : null
@@ -330,7 +331,7 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
                           className={cn(
                             'w-12 h-5 rounded border text-center text-xs tabular-nums bg-background focus:outline-none focus:ring-1 focus:ring-primary',
                             stock === 0
-                              ? 'border-red-400 text-red-500 dark:border-red-600'
+                              ? 'border-destructive/60 text-destructive'
                               : 'border-border text-foreground',
                           )}
                         />
@@ -344,12 +345,12 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
               <div className="flex items-end gap-2">
                 {selected && (
                   <div className="flex-1 space-y-0.5">
-                    <p className="text-[11px] text-muted-foreground">Giá vốn</p>
-                    <p className="text-sm text-muted-foreground line-through">{formatVND(selected.originalPrice)}</p>
+                    <p className="text-xs text-muted-foreground">Giá vốn</p>
+                    <p className={cn('text-sm text-muted-foreground line-through', NUMERIC)}>{formatVND(selected.originalPrice)}</p>
                   </div>
                 )}
                 <div className="w-32 space-y-1 shrink-0">
-                  <Label className="text-[11px]">Giá bán (₫)</Label>
+                  <Label className="text-xs">Giá bán (₫)</Label>
                   <VndInput
                     required className="h-8 text-sm"
                     value={item.sellingPrice}
@@ -357,7 +358,7 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
                   />
                 </div>
                 <div className="w-16 space-y-1 shrink-0">
-                  <Label className="text-[11px]">SL</Label>
+                  <Label className="text-xs">SL</Label>
                   <Input
                     type="number" required min="1"
                     inputMode="numeric"
@@ -414,7 +415,7 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
             <div className="space-y-2">
               <Button
                 type="button"
-                className="w-full bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white font-semibold"
+                className="w-full bg-success text-success-foreground hover:bg-success/90 font-semibold"
                 disabled={loading}
                 onClick={() => submitWithStatus(statusOrders.PAID)}
               >

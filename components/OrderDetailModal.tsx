@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Eye, EyeOff, RotateCcw } from 'lucide-react'
 import { formatVND, formatProfit } from '@/lib/format'
 import { Order, statusOrdersVN } from '@/lib/types'
+import { BADGE_SIZE, NUMERIC, RESTORED_BADGE, profitClass, statusBadgeClass } from '@/lib/orderStyles'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,10 +23,6 @@ interface OrderDetailModalProps {
 /** Từ ngần này sản phẩm trở lên thì danh sách trong modal chia làm 2 cột. */
 const ITEMS_TWO_COLUMN_THRESHOLD = 10
 
-const statusBadgeClass: Record<string, string> = {
-  'Paid':   'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30',
-  'Unpaid': 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 dark:border-red-500/30',
-}
 
 export default function OrderDetailModal({ order, onClose }: OrderDetailModalProps) {
   const [showProfit, setShowProfit] = useState(false)
@@ -62,7 +59,7 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
         <DialogHeader className="px-5 pt-5 pb-3 border-b shrink-0">
           <DialogTitle className="text-sm font-semibold leading-tight">
             Chi tiết đơn hàng{' '}
-            <span className="font-mono text-muted-foreground">
+            <span className={cn('text-muted-foreground', NUMERIC)}>
               #{order._id.slice(-10).toUpperCase()}
             </span>
           </DialogTitle>
@@ -76,7 +73,7 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
             <div className="flex items-center gap-1.5">
               <Badge
                 variant="outline"
-                className={cn('text-xs font-bold', statusBadgeClass[order.status] ?? 'bg-slate-100 text-slate-600')}
+                className={cn(BADGE_SIZE, statusBadgeClass(order.status))}
               >
                 {statusOrdersVN[order.status] || order.status}
               </Badge>
@@ -84,7 +81,7 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
                 <Badge
                   variant="outline"
                   title={`Khôi phục từ thùng rác lúc ${new Date(order.restoredAt).toLocaleString('vi-VN')}`}
-                  className="gap-1 text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 dark:border-emerald-500/30"
+                  className={cn('gap-1', BADGE_SIZE, RESTORED_BADGE)}
                 >
                   <RotateCcw className="h-3 w-3" /> Đã khôi phục
                 </Badge>
@@ -98,23 +95,23 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
           {/* Thông tin khách hàng – 2 cột */}
           <div className="rounded-lg border overflow-hidden">
             <div className="px-3 py-1.5 bg-muted/30 border-b">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Khách hàng
               </p>
             </div>
             <div className="grid grid-cols-2 gap-x-4 px-3 py-2.5 text-sm">
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-0.5">Tên</p>
+                <p className="text-xs text-muted-foreground uppercase font-semibold mb-0.5">Tên</p>
                 <p className={cn('font-medium', !order.name?.trim() && 'italic text-muted-foreground')}>
                   {order.name?.trim() || 'Khách lẻ'}
                 </p>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-0.5">Điện thoại</p>
+                <p className="text-xs text-muted-foreground uppercase font-semibold mb-0.5">Điện thoại</p>
                 <p className="font-medium">{order.phone?.trim() || '—'}</p>
               </div>
               <div className="col-span-2 mt-2">
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-0.5">Địa chỉ</p>
+                <p className="text-xs text-muted-foreground uppercase font-semibold mb-0.5">Địa chỉ</p>
                 <p className="font-medium">{order.address?.trim() || '—'}</p>
               </div>
             </div>
@@ -123,10 +120,10 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
           {/* Sản phẩm – compact table (2 cột khi đơn có nhiều sản phẩm) */}
           <div className="rounded-lg border overflow-hidden">
             <div className="flex items-center justify-between px-3 py-1.5 bg-muted/30 border-b">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Sản phẩm
               </p>
-              <p className="text-[10px] font-semibold text-muted-foreground tabular-nums">
+              <p className={cn('text-xs font-semibold text-muted-foreground', NUMERIC)}>
                 {order.items.length} loại
               </p>
             </div>
@@ -144,7 +141,7 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
                       <div key={idx} className="flex items-center justify-between px-3 py-2 text-sm">
                         <div className="min-w-0 flex-1">
                           <p className="font-medium truncate">{item.name}</p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                          <p className={cn('mt-0.5 text-xs text-muted-foreground', NUMERIC)}>
                             ×{item.quantity} · {formatVND(item.price)}/cái
                           </p>
                         </div>
@@ -160,10 +157,10 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
                                 {isVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                               </button>
                             )}
-                            <p className="font-semibold">{formatVND(item.price * item.quantity)}</p>
+                            <p className={cn('font-semibold', NUMERIC)}>{formatVND(item.price * item.quantity)}</p>
                           </div>
                           {hasOriginal && isVisible && (
-                            <p className="text-[11px] text-muted-foreground line-through">
+                            <p className={cn('text-xs text-muted-foreground line-through', NUMERIC)}>
                               {formatVND(item.originalPrice * item.quantity)}
                             </p>
                           )}
@@ -180,21 +177,19 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
           <div className="space-y-1.5">
             <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/40 border text-sm">
               <span className="text-muted-foreground">Tổng tiền hàng</span>
-              <span className="font-semibold">{formatVND(order.totalAmount)}</span>
+              <span className={cn('font-semibold', NUMERIC)}>{formatVND(order.totalAmount)}</span>
             </div>
             {showProfit ? (
               <div className={cn(
                 'flex items-center justify-between px-3 py-2 rounded-lg border text-sm',
-                order.profit > 0 && 'bg-emerald-500/10 border-emerald-500/30',
-                order.profit < 0 && 'bg-red-500/10 border-red-500/30',
+                order.profit > 0 && 'bg-success/10 border-success/30',
+                order.profit < 0 && 'bg-destructive/10 border-destructive/30',
                 order.profit === 0 && 'bg-muted/40 border-transparent',
               )}>
                 <span className="font-semibold">{order.profit >= 0 ? 'Lãi' : 'Lỗ'}</span>
                 <div className="flex items-center gap-2">
                   <span className={cn(
-                    'font-bold tabular-nums',
-                    order.profit > 0 && 'text-emerald-600 dark:text-emerald-400',
-                    order.profit < 0 && 'text-red-600 dark:text-red-400',
+                    'font-bold', NUMERIC, profitClass(order.profit),
                   )}>
                     {formatProfit(order.profit)}
                   </span>

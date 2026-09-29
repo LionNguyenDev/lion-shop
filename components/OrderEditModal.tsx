@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { formatProfit, formatVND } from '@/lib/format'
 import { Order, Product, statusOrders, WAREHOUSES, Warehouse } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { NUMERIC, profitClass, statusBadgeClass } from '@/lib/orderStyles'
 import { ProductSearch, warehouseStockKey } from './ProductSearch'
 import VndInput from './VndInput'
 import { Button } from '@/components/ui/button'
@@ -34,10 +35,9 @@ interface EditableItem {
 
 const STATUS_OPTIONS = [statusOrders.UNPAID, statusOrders.PAID] as const
 
-const statusActiveClass: Record<string, string> = {
-  [statusOrders.UNPAID]: 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30',
-  [statusOrders.PAID]:   'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
-}
+// Selected state reuses the shared status colours, one shade stronger than the badge
+const statusActiveClass = (status: string) =>
+  statusBadgeClass(status).replace('/10', '/20')
 
 /* ─────────────────────────────────────────────────────────────
    Inner form — rendered with key={order._id} so React
@@ -215,7 +215,7 @@ function EditForm({
             <button key={s} type="button" onClick={() => setForm((p) => ({ ...p, status: s }))}
               className={cn(
                 'px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors',
-                form.status === s ? statusActiveClass[s] : 'bg-background text-muted-foreground border-border hover:bg-muted',
+                form.status === s ? statusActiveClass(s) : 'bg-background text-muted-foreground border-border hover:bg-muted',
               )}
             >
               {s}
@@ -266,7 +266,7 @@ function EditForm({
 
               {/* Hàng 2: chọn kho + inline stock */}
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-[11px] text-muted-foreground shrink-0">Kho:</p>
+                <p className="text-xs text-muted-foreground shrink-0">Kho:</p>
                 {(Object.entries(WAREHOUSES) as [Warehouse, string][]).map(([key, label]) => {
                   const stockField = warehouseStockKey[key]
                   const selected = productCache[item.product]
@@ -293,7 +293,7 @@ function EditForm({
                           onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
                           className={cn(
                             'w-12 h-5 rounded border text-center text-xs tabular-nums bg-background focus:outline-none focus:ring-1 focus:ring-primary',
-                            stock === 0 ? 'border-red-400 text-red-500 dark:border-red-600' : 'border-border text-foreground',
+                            stock === 0 ? 'border-destructive/60 text-destructive' : 'border-border text-foreground',
                           )}
                         />
                       )}
@@ -334,19 +334,18 @@ function EditForm({
         {/* Tổng cộng */}
         <div className="flex justify-between text-sm font-semibold px-1 pt-1">
           <span className="text-muted-foreground">Tổng cộng</span>
-          <span className="text-emerald-600 dark:text-emerald-400">{formatVND(totalAmount)}</span>
+          <span className={cn('text-success', NUMERIC)}>{formatVND(totalAmount)}</span>
         </div>
         <div className={cn(
           'flex items-center justify-between px-3 py-2 rounded-lg border',
-          profit > 0 && 'bg-emerald-500/10 border-emerald-500/30',
-          profit < 0 && 'bg-red-500/10 border-red-500/30',
+          profit > 0 && 'bg-success/10 border-success/30',
+          profit < 0 && 'bg-destructive/10 border-destructive/30',
           profit === 0 && 'bg-muted/40',
         )}>
           <span className="text-sm font-semibold">{profit >= 0 ? 'Lãi' : 'Lỗ'}</span>
           <span className={cn(
             'text-sm font-bold tabular-nums',
-            profit > 0 && 'text-emerald-600 dark:text-emerald-400',
-            profit < 0 && 'text-red-600 dark:text-red-400',
+            profitClass(profit),
           )}>
             {formatProfit(profit)}
           </span>
