@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { LogIn } from 'lucide-react'
 import {
+  Reveal,
   HeroSection,
   StatsSection,
   AboutSection,
@@ -16,24 +17,6 @@ import {
 } from '@/app/home/components'
 import { contacts, reviews } from '@/app/home/const'
 import { Icons } from '@/assets/icons'
-
-function useInView(ref: React.RefObject<HTMLElement | null>) {
-  const [isInView, setIsInView] = useState(false)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setIsInView(true)
-        observer.unobserve(entry.target)
-      }
-    }, { threshold: 0.1 })
-
-    if (ref.current) observer.observe(ref.current)
-    return () => observer.disconnect()
-  }, [ref])
-
-  return isInView
-}
 
 const ZALO_GROUPS = [
   {
@@ -104,35 +87,29 @@ const FOLLOW_PLATFORMS = [
   },
 ]
 
+const navLinkClass =
+  'relative py-1 text-slate-600 transition-colors duration-200 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white after:absolute after:-bottom-0.5 after:left-0 after:h-0.5 after:w-full after:origin-left after:scale-x-0 after:rounded-full after:bg-linear-to-r after:from-emerald-500 after:to-teal-400 after:transition-transform after:duration-300 hover:after:scale-x-100'
+
 export function HomePage() {
   const [scrolled, setScrolled] = useState(false)
+  const [progress, setProgress] = useState(0)
 
   /* smooth-scroll refs */
   const aboutRef   = useRef<HTMLDivElement>(null)
   const reviewsRef = useRef<HTMLDivElement>(null)
   const contactRef = useRef<HTMLDivElement>(null)
-  const statsRef   = useRef<HTMLDivElement>(null)
-  const zaloRef    = useRef<HTMLDivElement>(null)
-  const socialRef  = useRef<HTMLDivElement>(null)
-
-  /* scroll animations */
-  const statsInView = useInView(statsRef)
-  const aboutInView = useInView(aboutRef)
-  const reviewInView = useInView(reviewsRef)
-  const zaloInView = useInView(zaloRef)
-  const socialInView = useInView(socialRef)
 
   useEffect(() => {
     const handleScroll = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight
       setScrolled(window.scrollY > 10)
+      setProgress(max > 0 ? window.scrollY / max : 0)
     }
-    window.addEventListener('scroll', handleScroll)
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-
-
- 
   const scrollTo = (ref: React.RefObject<HTMLElement | null>) => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -140,11 +117,11 @@ export function HomePage() {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-white dark:bg-slate-950">
 
-      {/* ── Background blobs (subtle) ── */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-slate-200/20 dark:bg-slate-800/20 blur-3xl animate-blob" />
-        <div className="absolute top-1/3 -right-32 h-96 w-96 rounded-full bg-slate-200/15 dark:bg-slate-800/15 blur-3xl animate-blob" style={{ animationDelay: '2s' }} />
-        <div className="absolute -bottom-32 left-1/3 h-96 w-96 rounded-full bg-slate-200/20 dark:bg-slate-800/20 blur-3xl animate-blob" style={{ animationDelay: '4s' }} />
+      {/* ── Background colour mesh ── */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -top-32 -left-32 h-112 w-112 rounded-full bg-emerald-200/40 blur-3xl animate-blob dark:bg-emerald-500/10" />
+        <div className="absolute top-1/3 -right-32 h-96 w-96 rounded-full bg-amber-200/40 blur-3xl animate-blob dark:bg-amber-500/10" style={{ animationDelay: '4s' }} />
+        <div className="absolute -bottom-32 left-1/3 h-96 w-96 rounded-full bg-teal-200/40 blur-3xl animate-blob dark:bg-teal-500/10" style={{ animationDelay: '8s' }} />
       </div>
 
       {/* ══════════════════════════════════════════
@@ -152,52 +129,43 @@ export function HomePage() {
       ══════════════════════════════════════════ */}
       <nav className={`sticky top-0 z-50 border-b transition-all duration-300 ${
         scrolled
-          ? 'border-slate-200 bg-white/80 dark:bg-slate-900/80 shadow-lg shadow-slate-200/20 dark:shadow-slate-900/50 backdrop-blur-lg'
-          : 'border-slate-200/0 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md'
+          ? 'border-slate-200 bg-white/80 shadow-lg shadow-slate-200/30 backdrop-blur-lg dark:border-slate-800 dark:bg-slate-950/80 dark:shadow-black/30'
+          : 'border-transparent bg-transparent'
       }`}>
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 sm:px-12">
+        {/* Scroll progress */}
+        <div
+          aria-hidden
+          className="absolute inset-x-0 bottom-0 h-0.5 origin-left bg-linear-to-r from-emerald-500 via-teal-400 to-amber-400"
+          style={{ transform: `scaleX(${progress})` }}
+        />
+
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-12 sm:py-4">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-linear-to-br from-slate-900 to-slate-800 dark:from-white dark:to-slate-100 text-white dark:text-slate-900 shadow-md group-hover:shadow-lg transition-all duration-300 transform group-hover:scale-105">
-              <span className="text-lg">🦁</span>
+          <Link href="/" className="group flex items-center gap-2.5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-emerald-100 to-amber-100 ring-1 ring-emerald-200 shadow-sm transition-transform duration-300 group-hover:rotate-[-8deg] group-hover:scale-110 dark:from-emerald-500/20 dark:to-amber-500/10 dark:ring-emerald-500/30">
+              <Icons.Lion className="h-7 w-7" />
             </div>
-            <div className="hidden sm:block">
-              <p className="text-sm font-bold leading-none text-slate-900 dark:text-white group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">Lion Shop</p>
-              <p className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-500">Cosmetic & Beauty</p>
+            <div>
+              <p className="text-sm font-bold leading-none text-slate-900 dark:text-white">Lion Shop</p>
+              <p className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">Cosmetic & Beauty</p>
             </div>
           </Link>
 
           {/* Nav links */}
-          <div className="hidden sm:flex items-center gap-8 text-sm font-medium">
-            <button
-              onClick={() => scrollTo(aboutRef)}
-              className="relative text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors duration-200 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-slate-900 dark:after:bg-white after:rounded-full hover:after:w-full after:transition-all after:duration-300"
-            >
-              Giới Thiệu
-            </button>
-            <button
-              onClick={() => scrollTo(reviewsRef)}
-              className="relative text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors duration-200 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-slate-900 dark:after:bg-white after:rounded-full hover:after:w-full after:transition-all after:duration-300"
-            >
-              Đánh Giá
-            </button>
-            <button
-              onClick={() => scrollTo(contactRef)}
-              className="relative text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors duration-200 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-slate-900 dark:after:bg-white after:rounded-full hover:after:w-full after:transition-all after:duration-300"
-            >
-              Liên Hệ
-            </button>
+          <div className="hidden items-center gap-8 text-sm font-medium md:flex">
+            <button onClick={() => scrollTo(aboutRef)} className={navLinkClass}>Giới Thiệu</button>
+            <button onClick={() => scrollTo(reviewsRef)} className={navLinkClass}>Đánh Giá</button>
+            <button onClick={() => scrollTo(contactRef)} className={navLinkClass}>Liên Hệ</button>
           </div>
 
-          {/* Right side: Theme toggle and Scroll indicator */}
-          <div className="flex items-center gap-4">
-            {/* Theme toggle */}
+          <div className="flex items-center gap-2 sm:gap-3">
             <ThemeToggleBtn />
-
-            {/* Scroll indicator */}
-            <div className={`hidden sm:flex transition-opacity duration-300 ${scrolled ? 'opacity-0' : 'opacity-100'}`}>
-              <ChevronDown className="h-4 w-4 text-slate-400 animate-bounce" />
-            </div>
+            <Link
+              href="/signin"
+              className="btn-shimmer inline-flex h-9 items-center gap-1.5 rounded-lg bg-linear-to-r from-emerald-700 to-teal-700 px-4 text-sm font-semibold text-white shadow-md shadow-emerald-700/25 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-emerald-700/30"
+            >
+              <LogIn className="h-4 w-4" /> <span className="hidden sm:inline">Đăng nhập</span>
+            </Link>
           </div>
         </div>
       </nav>
@@ -209,60 +177,11 @@ export function HomePage() {
         <HeroSection scrollTo={scrollTo} aboutRef={aboutRef} contactRef={contactRef} />
       </div>
 
-      <div
-        ref={statsRef}
-        className={`relative z-10 transition-all duration-700 ${
-          statsInView
-            ? 'opacity-100 translate-y-0'
-            : 'opacity-0 translate-y-8'
-        }`}
-      >
-        <StatsSection />
-      </div>
-
-      <div
-        ref={aboutRef}
-        className={`relative z-10 transition-all duration-700 ${
-          aboutInView
-            ? 'opacity-100 translate-y-0'
-            : 'opacity-0 translate-y-8'
-        }`}
-      >
-        <AboutSection aboutRef={aboutRef} />
-      </div>
-
-      <div
-        ref={reviewsRef}
-        className={`relative z-10 transition-all duration-700 ${
-          reviewInView
-            ? 'opacity-100 translate-y-0'
-            : 'opacity-0 translate-y-8'
-        }`}
-      >
-        <ReviewSection reviews={reviews} reviewsRef={reviewsRef} />
-      </div>
-
-      <div
-        ref={zaloRef}
-        className={`relative z-10 transition-all duration-700 ${
-          zaloInView
-            ? 'opacity-100 translate-y-0'
-            : 'opacity-0 translate-y-8'
-        }`}
-      >
-        <ZaloGroupsSection groups={ZALO_GROUPS} />
-      </div>
-
-      <div
-        ref={socialRef}
-        className={`relative z-10 transition-all duration-700 ${
-          socialInView
-            ? 'opacity-100 translate-y-0'
-            : 'opacity-0 translate-y-8'
-        }`}
-      >
-        <SocialSection platforms={FOLLOW_PLATFORMS} contactRef={contactRef} />
-      </div>
+      <Reveal><StatsSection /></Reveal>
+      <Reveal><AboutSection aboutRef={aboutRef} /></Reveal>
+      <Reveal><ReviewSection reviews={reviews} reviewsRef={reviewsRef} /></Reveal>
+      <Reveal><ZaloGroupsSection groups={ZALO_GROUPS} /></Reveal>
+      <Reveal><SocialSection platforms={FOLLOW_PLATFORMS} contactRef={contactRef} /></Reveal>
 
       <div className="relative z-10">
         <Footer contacts={contacts} scrollTo={scrollTo} aboutRef={aboutRef} reviewsRef={reviewsRef} contactRef={contactRef} />

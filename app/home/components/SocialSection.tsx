@@ -1,6 +1,8 @@
 'use client'
 
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Smartphone } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { SectionHeading } from './Reveal'
 
 interface Platform {
   id: string
@@ -91,28 +93,35 @@ function PhoneScreenContent({ type }: { type: string }) {
 
 export function SocialSection({ platforms, contactRef }: SocialSectionProps) {
   return (
-    <section ref={contactRef} id="contact" className="relative z-10 mx-auto max-w-6xl px-6 pb-28 scroll-mt-20">
-      <div className="mb-12 text-center">
-        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Follow us</p>
-        <h2 className="mt-2 text-3xl font-black sm:text-4xl text-slate-900 dark:text-white">Theo dõi Shop ở đâu 📲</h2>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Follow để cập nhật hàng mới và ưu đãi hot mỗi ngày!</p>
-      </div>
+    <section ref={contactRef} id="contact" className="relative z-10 mx-auto max-w-6xl scroll-mt-20 px-6 pb-28 lg:px-12">
+      <SectionHeading
+        eyebrow="Follow us"
+        title="Theo dõi Shop ở đâu"
+        icon={Smartphone}
+        description="Follow để cập nhật hàng mới và ưu đãi hot mỗi ngày!"
+      />
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {platforms.map((p, i) => (
+        {platforms.map((p) => (
           <div
             key={p.id}
-            className={`animate-fade-up group flex flex-col items-center rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/50`}
-            style={{ animationDelay: `${i * 0.1}s` }}
+            className={cn(
+              'group relative flex flex-col items-center overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl dark:border-slate-800 dark:bg-slate-900/60',
+              'group-data-[visible=false]/reveal:translate-y-8 group-data-[visible=false]/reveal:opacity-0',
+              p.glow,
+            )}
           >
+            {/* Brand wash that fills in on hover */}
+            <div aria-hidden className={cn('pointer-events-none absolute inset-x-0 top-0 h-28 bg-linear-to-br opacity-10 transition-all duration-500 group-hover:h-full group-hover:opacity-[0.07]', p.gradient)} />
+
             {/* Platform badge */}
-            <div className={`mb-5 inline-flex items-center gap-1.5 rounded-full bg-slate-900 text-white px-3 py-1.5 text-xs font-bold shadow-sm dark:bg-white dark:text-slate-900`}>
+            <div className={cn('relative mb-5 inline-flex items-center gap-1.5 rounded-full bg-linear-to-r px-3 py-1.5 text-xs font-bold text-white shadow-md', p.gradient)}>
               {p.icon} {p.name}
             </div>
 
             {/* Phone mockup */}
-            <div className="relative mb-5">
-              <div className="relative h-[192px] w-[108px] rounded-[22px] bg-slate-800 border-[3px] border-slate-700 shadow-2xl overflow-hidden">
+            <div className="relative mb-5 transition-transform duration-500 group-hover:-translate-y-1 group-hover:-rotate-3 group-hover:scale-105">
+              <div className="relative h-48 w-27 overflow-hidden rounded-[22px] border-[3px] border-slate-700 bg-slate-800 shadow-2xl">
                 {/* Notch */}
                 <div className="absolute top-[6px] left-1/2 -translate-x-1/2 z-10 h-[5px] w-[28px] rounded-full bg-slate-700" />
                 {/* Screen content */}
@@ -123,19 +132,19 @@ export function SocialSection({ platforms, contactRef }: SocialSectionProps) {
                 <div className="absolute bottom-1 left-1/2 -translate-x-1/2 h-[2.5px] w-[26px] rounded-full bg-slate-600" />
               </div>
               {/* Glow */}
-              <div className={`pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 h-5 w-24 rounded-full bg-slate-300 dark:bg-slate-700 opacity-30 blur-xl`} />
+              <div className={cn('pointer-events-none absolute -bottom-3 left-1/2 h-6 w-24 -translate-x-1/2 rounded-full bg-linear-to-r opacity-30 blur-xl transition-opacity duration-500 group-hover:opacity-60', p.gradient)} />
             </div>
 
             {/* Info */}
-            <p className="font-bold text-sm text-center text-slate-900 dark:text-white">{p.handle}</p>
-            <p className="mt-0.5 mb-5 text-xs text-slate-600 dark:text-slate-400 text-center">{p.stat}</p>
+            <p className="relative text-center text-sm font-bold text-slate-900 dark:text-white">{p.handle}</p>
+            <p className="relative mb-5 mt-0.5 text-center text-xs text-slate-600 dark:text-slate-400">{p.stat}</p>
 
             {/* CTA */}
             <a
               href={p.href}
               target="_blank"
               rel="noopener noreferrer"
-              className={`mt-auto inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 hover:scale-105 transition-all duration-200 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100`}
+              className={cn('btn-shimmer relative mt-auto inline-flex items-center gap-1.5 rounded-xl bg-linear-to-r px-4 py-2.5 text-xs font-semibold text-white shadow-md transition-all duration-200 hover:scale-105 hover:shadow-lg', p.gradient)}
             >
               {p.cta} <ExternalLink className="h-3 w-3" />
             </a>

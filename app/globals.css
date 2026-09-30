@@ -164,6 +164,54 @@
 .animate-wave         { animation: wave 2.5s ease-in-out infinite; transform-origin: 70% 70%; }
 .bg-gradient-animated { background-size: 300% 300%; animation: gradient-shift 12s ease infinite; }
 
+/* ── Auth pages ── */
+@keyframes shake     { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-6px); } 40%,80% { transform: translateX(6px); } }
+@keyframes shimmer   { from { transform: translateX(-100%) skewX(-20deg); } to { transform: translateX(250%) skewX(-20deg); } }
+@keyframes bar-rise  { from { transform: scaleY(0.35); } to { transform: scaleY(1); } }
+@keyframes pulse-ring { 0% { transform: scale(0.9); opacity: 0.7; } 100% { transform: scale(1.6); opacity: 0; } }
+@keyframes pop-in    { 0% { opacity: 0; transform: scale(0.85) translateY(12px); } 60% { transform: scale(1.03) translateY(0); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+@keyframes fade-left { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: translateX(0); } }
+
+.animate-shake      { animation: shake 0.4s ease-in-out; }
+.animate-spin-slow  { animation: spin-slow 24s linear infinite; }
+.animate-pulse-ring { animation: pulse-ring 2.4s cubic-bezier(0.2, 0.6, 0.4, 1) infinite; }
+.animate-pop-in     { animation: pop-in 0.7s cubic-bezier(0.2, 0.8, 0.3, 1.2) backwards; }
+.animate-fade-left  { animation: fade-left 0.6s ease-out backwards; }
+.animate-bar-rise   { transform-origin: bottom; animation: bar-rise 1.6s ease-in-out infinite alternate; }
+
+/* Children fade up one after another */
+.animate-stagger > * { animation: fade-up 0.5s ease-out backwards; }
+.animate-stagger > *:nth-child(1) { animation-delay: 0.10s; }
+.animate-stagger > *:nth-child(2) { animation-delay: 0.18s; }
+.animate-stagger > *:nth-child(3) { animation-delay: 0.26s; }
+.animate-stagger > *:nth-child(4) { animation-delay: 0.34s; }
+.animate-stagger > *:nth-child(5) { animation-delay: 0.42s; }
+.animate-stagger > *:nth-child(6) { animation-delay: 0.50s; }
+
+/* Light sweep across a button on hover */
+.btn-shimmer { position: relative; overflow: hidden; }
+.btn-shimmer::after {
+  content: '';
+  position: absolute; inset: 0; width: 40%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.35), transparent);
+  transform: translateX(-100%) skewX(-20deg);
+  pointer-events: none;
+}
+.btn-shimmer:hover:not(:disabled)::after { animation: shimmer 0.8s ease-out; }
+
+/* Hand-drawn stroke that draws itself in */
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.animate-draw { stroke-dasharray: 220; stroke-dashoffset: 220; animation: draw 1s 0.8s ease-out forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-draw { animation: none; stroke-dashoffset: 0; }
+  .animate-blob, .animate-float-slow, .animate-float-slower, .animate-float-tilt, .animate-wave,
+  .animate-spin-slow, .animate-pulse-ring, .animate-bar-rise, .animate-shake,
+  .animate-fade-up, .animate-pop-in, .animate-fade-left, .animate-stagger > *,
+  .btn-shimmer::after { animation: none !important; }
+}
+
 /* Review carousel progress bar */
 @keyframes review-progress {
   from { transform: scaleX(0); }

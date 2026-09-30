@@ -4,18 +4,18 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { ArrowRight, Eye, EyeOff, Lock, User } from 'lucide-react'
-import { Button, buttonVariants } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Hand, Lock, User } from 'lucide-react'
+import { AuthLayout } from '@/components/auth/AuthLayout'
+import { AuthError, AuthField, AuthSubmit } from '@/components/auth/AuthFields'
 
 export default function SignInPage() {
   const router = useRouter()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading]   = useState(false)
+  const [success, setSuccess]   = useState(false)
   const [error, setError]       = useState('')
-  const [showPassword, setShowPassword] = useState(false)
+  const [errorKey, setErrorKey] = useState(0)
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -29,111 +29,64 @@ export default function SignInPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Đăng nhập thất bại')
-      toast.success(`Chào mừng trở lại, ${data.user.name}! 👋`)
+      setSuccess(true)
+      toast.success(`Chào mừng trở lại, ${data.user.name}!`)
+      // Let the success state show briefly before navigating away
+      await new Promise((r) => setTimeout(r, 500))
       // Friends only have the TikTok tool; admins are sent on to /admin by the middleware
       router.push(data.user.role === 'friend' ? '/tiktok' : '/')
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Đăng nhập thất bại')
-    } finally {
+      setErrorKey((k) => k + 1)
       setLoading(false)
     }
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-violet-50 via-pink-50 to-amber-50 dark:from-slate-950 dark:via-violet-950 dark:to-slate-900 p-4">
-
-      {/* Animated background blobs */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-violet-300/40 dark:bg-violet-500/20 blur-3xl animate-blob" />
-        <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-pink-300/40 dark:bg-pink-500/20 blur-3xl animate-blob" style={{ animationDelay: '3s' }} />
-      </div>
-
-      <div className="relative z-10 w-full max-w-sm animate-fade-up">
-        {/* Logo */}
-        <Link href="/" className="mb-6 flex flex-col items-center gap-2">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-pink-500 text-white shadow-xl shadow-violet-500/30">
-            <span className="text-2xl">🦁</span>
-          </div>
-          <p className="text-sm font-semibold">Lion Shop</p>
-        </Link>
-
-        <div className="rounded-3xl border bg-white/80 p-7 shadow-2xl shadow-violet-500/10 backdrop-blur-xl dark:bg-white/5">
-          <div className="mb-6 text-center">
-            <h1 className="text-2xl font-bold">Chào mừng trở lại 👋</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Đăng nhập vào trang quản trị
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-lg">
-                {error}
-              </p>
-            )}
-
-            <div className="space-y-1.5">
-              <Label htmlFor="username"><User className="h-3.5 w-3.5" /> Tên đăng nhập</Label>
-              <Input
-                id="username"
-                autoComplete="username"
-                required
-                placeholder="ten-dang-nhap"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="h-10"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="password"><Lock className="h-3.5 w-3.5" /> Mật khẩu</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  required
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="h-10 pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  tabIndex={-1}
-                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              disabled={loading}
-              className="h-10 w-full bg-gradient-to-r from-violet-500 to-pink-500 hover:opacity-90 text-white shadow-lg shadow-violet-500/30 transition-all hover:scale-[1.02]"
-            >
-              {loading ? 'Đang đăng nhập…' : <>Đăng nhập <ArrowRight className="h-4 w-4" /></>}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            Chưa có tài khoản?{' '}
-            <Link href="/signup" className="font-semibold text-violet-600 hover:underline dark:text-violet-400">
-              Đăng ký ngay
-            </Link>
-          </div>
-        </div>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          <Link href="/" className={buttonVariants({ variant: 'ghost', size: 'sm' }) + ' text-xs'}>
-            ← Về trang chủ
+    <AuthLayout
+      title={<><span className="inline-flex items-center gap-2">Chào mừng trở lại <Hand className="h-6 w-6 text-amber-500 animate-wave" /></span></>}
+      description="Đăng nhập để tiếp tục vào trang quản trị."
+      footer={
+        <>
+          Chưa có tài khoản?{' '}
+          <Link href="/signup" className="font-semibold text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-400">
+            Đăng ký ngay
           </Link>
-        </p>
-      </div>
-    </div>
+        </>
+      }
+    >
+      <AuthError key={errorKey} message={error} />
+
+      <form onSubmit={handleSubmit} className="animate-stagger space-y-5">
+        <AuthField
+          id="username"
+          label="Tên đăng nhập"
+          icon={User}
+          autoComplete="username"
+          autoFocus
+          required
+          placeholder="ten-dang-nhap"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+
+        <AuthField
+          id="password"
+          label="Mật khẩu"
+          icon={Lock}
+          type="password"
+          autoComplete="current-password"
+          required
+          placeholder="••••••••"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        <AuthSubmit loading={loading} success={success} loadingText="Đang đăng nhập…" successText="Thành công!">
+          Đăng nhập
+        </AuthSubmit>
+      </form>
+    </AuthLayout>
   )
 }

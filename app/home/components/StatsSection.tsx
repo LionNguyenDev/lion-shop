@@ -1,32 +1,41 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { MapPinned, Package, Trophy, Warehouse } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCountUp } from './utils'
 
 const STATS = [
-  { value: 7,    suffix: '+', label: 'Năm kinh nghiệm', icon: '🏆',
-    color: 'text-slate-900 dark:text-white',  glowColor: 'transparent',   sub: 'text-slate-600 dark:text-slate-400'  },
-  { value: 4000, suffix: '+', label: 'Sản phẩm',        icon: '📦',
-    color: 'text-slate-900 dark:text-white', glowColor: 'transparent',  sub: 'text-slate-600 dark:text-slate-400' },
-  { value: 3,    suffix: '',  label: 'Kho toàn quốc',   icon: '🏭',
-    color: 'text-slate-900 dark:text-white',   glowColor: 'transparent',  sub: 'text-slate-600 dark:text-slate-400'   },
-  { value: 73,   suffix: '',  label: 'Tỉnh thành',      icon: '🗺️',
-    color: 'text-slate-900 dark:text-white',    glowColor: 'transparent',   sub: 'text-slate-600 dark:text-slate-400'    },
+  { value: 7,    suffix: '+', label: 'Năm kinh nghiệm', icon: Trophy,
+    chip: 'bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300',     bar: 'from-amber-400 to-orange-400',  glow: 'hover:shadow-amber-500/15' },
+  { value: 4000, suffix: '+', label: 'Sản phẩm',        icon: Package,
+    chip: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300', bar: 'from-emerald-500 to-teal-400',  glow: 'hover:shadow-emerald-500/15' },
+  { value: 3,    suffix: '',  label: 'Kho toàn quốc',   icon: Warehouse,
+    chip: 'bg-sky-100 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300',         bar: 'from-sky-400 to-indigo-400',    glow: 'hover:shadow-sky-500/15' },
+  { value: 73,   suffix: '',  label: 'Tỉnh thành',      icon: MapPinned,
+    chip: 'bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300',       bar: 'from-rose-400 to-pink-400',     glow: 'hover:shadow-rose-500/15' },
 ]
 
-function StatItem({ stat, started }: { stat: typeof STATS[0]; started: boolean }) {
+function StatItem({ stat, started, index }: { stat: typeof STATS[0]; started: boolean; index: number }) {
   const count = useCountUp(stat.value, 1600, started)
+  const Icon = stat.icon
   return (
-    <div className="flex flex-col items-center gap-2 px-6 py-2 relative">
-      <span className="text-2xl mb-1">{stat.icon}</span>
-      <p
-        className={cn('text-4xl sm:text-5xl font-black tabular-nums', stat.color)}
-        style={{ filter: `drop-shadow(0 0 20px ${stat.glowColor})` }}
-      >
+    <div
+      className={cn(
+        'group relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-5 text-center shadow-sm backdrop-blur transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl sm:p-6 dark:border-slate-800 dark:bg-slate-900/60',
+        stat.glow,
+        started ? 'animate-pop-in' : 'opacity-0',
+      )}
+      style={{ animationDelay: `${index * 0.1}s` }}
+    >
+      <div className={cn('absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-linear-to-r transition-transform duration-500 group-hover:scale-x-100', stat.bar)} />
+      <span className={cn('mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110', stat.chip)}>
+        <Icon className="h-6 w-6" />
+      </span>
+      <p className="font-mono text-3xl font-bold tabular-nums tracking-tight text-slate-900 sm:text-4xl dark:text-white">
         {count.toLocaleString('vi-VN')}{stat.suffix}
       </p>
-      <p className={cn('text-sm sm:text-base font-medium tracking-wide', stat.sub)}>{stat.label}</p>
+      <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-400">{stat.label}</p>
     </div>
   )
 }
@@ -47,17 +56,11 @@ export function StatsSection() {
   }, [])
 
   return (
-    <div ref={statsRef} className="relative z-10 w-full overflow-hidden">
-      <div className="relative border-y border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 py-10 sm:py-14">
-        <div className="pointer-events-none absolute inset-0" />
-
-        <div className="mx-auto max-w-5xl px-6">
-          <div className="grid grid-cols-2 gap-y-8 sm:grid-cols-4 sm:divide-x sm:divide-slate-200 dark:sm:divide-slate-800">
-            {STATS.map((stat) => (
-              <StatItem key={stat.label} stat={stat} started={statsStarted} />
-            ))}
-          </div>
-        </div>
+    <div ref={statsRef} className="relative z-10 mx-auto max-w-6xl px-6 pb-8 lg:px-12">
+      <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+        {STATS.map((stat, i) => (
+          <StatItem key={stat.label} stat={stat} started={statsStarted} index={i} />
+        ))}
       </div>
     </div>
   )

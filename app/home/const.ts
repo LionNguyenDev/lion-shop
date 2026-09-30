@@ -2,7 +2,6 @@
 export type Review = {
   id: number
   name: string
-  avatar: string
   rating: number
   text: string
   product: string
@@ -14,7 +13,6 @@ export const reviews: Review[] = [
   {
     id: 1,
     name: 'Nguyễn Khánh Linh',
-    avatar: '🌸',
     rating: 5,
     text: 'Shop quá xịn luôn! Mỹ phẩm dùng cực thích, da mình hợp ngay từ lần đầu 😍 Đóng gói siêu cẩn thận và ship nhanh nữa.',
     product: 'Kem chống nắng',
@@ -23,7 +21,6 @@ export const reviews: Review[] = [
   {
     id: 2,
     name: 'Trần Minh Khôi',
-    avatar: '🦋',
     rating: 5,
     text: 'Mình mua tặng người yêu mà cô ấy mê luôn 😂 Sản phẩm thơm, chính hãng, dùng rất ổn áp. Shop tư vấn nhiệt tình.',
     product: 'Son tint',
@@ -32,7 +29,6 @@ export const reviews: Review[] = [
   {
     id: 3,
     name: 'Lê Bảo Ngọc',
-    avatar: '🌺',
     rating: 5,
     text: 'Đây là shop mỹ phẩm mình tin tưởng nhất luôn ✨ Giá hợp lý mà chất lượng cực ổn. Sẽ còn quay lại dài dài!',
     product: 'Serum dưỡng da',
@@ -41,7 +37,6 @@ export const reviews: Review[] = [
   {
     id: 4,
     name: 'Phạm Gia Huy',
-    avatar: '🎯',
     rating: 5,
     text: 'Hàng y hình, check mã đầy đủ nên rất yên tâm. Bạn gái mình dùng xong khen suốt 😄 Recommend mọi người nên thử!',
     product: 'Set skincare',
@@ -50,7 +45,6 @@ export const reviews: Review[] = [
   {
     id: 5,
     name: 'Vũ Khánh Ly',
-    avatar: '🌙',
     rating: 5,
     text: 'Mình khá kỹ khi mua mỹ phẩm online nhưng shop làm mình bất ngờ luôn 💕 Chất lượng tốt, tư vấn có tâm, giao hàng siêu nhanh.',
     product: 'Phấn nước cushion',
@@ -59,7 +53,6 @@ export const reviews: Review[] = [
   {
     id: 6,
     name: 'Đặng Thị Thu',
-    avatar: '🍀',
     rating: 5,
     text: 'Giá siêu hợp lý mà sản phẩm dùng rất thích. Mình đã giới thiệu cho bạn bè và ai cũng feedback tốt hết 🥰',
     product: 'Mặt nạ dưỡng da',
