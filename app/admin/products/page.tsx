@@ -355,7 +355,7 @@ export default function ProductsPage() {
           setCloseOrderConfirmOpen(true)
         }}
       >
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl lg:has-[[data-wide]]:max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Tạo đơn hàng</DialogTitle>
           </DialogHeader>

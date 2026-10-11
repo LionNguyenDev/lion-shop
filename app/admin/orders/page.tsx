@@ -365,7 +365,7 @@ export default function OrdersPage() {
           setCloseCreateConfirmOpen(true)
         }}
       >
-        <DialogContent className={cn('max-h-[90vh] overflow-y-auto', createModal === 'form' ? 'sm:max-w-2xl' : 'sm:max-w-md')}>
+        <DialogContent className={cn('max-h-[90vh] overflow-y-auto', createModal === 'form' ? 'sm:max-w-2xl lg:has-[[data-wide]]:max-w-5xl' : 'sm:max-w-md')}>
           {createModal === 'form' && (
             <>
               <DialogHeader><DialogTitle>Đơn hàng mới</DialogTitle></DialogHeader>

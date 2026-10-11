@@ -60,7 +60,22 @@ export class InsufficientStockError extends Error {
   }
 }
 
-const TZ_OFFSET_MS = 7 * 60 * 60 * 1000 // Asia/Ho_Chi_Minh
+export interface OrderItemIssue {
+  index: number // vị trí dòng sản phẩm trong request
+  message: string
+}
+
+/** Lỗi tạo đơn — liệt kê mọi dòng sản phẩm không hợp lệ để UI hiển thị cùng lúc. */
+export class OrderValidationError extends Error {
+  issues: OrderItemIssue[]
+  constructor(issues: OrderItemIssue[]) {
+    super([...new Set(issues.map((i) => i.message))].join('\n'))
+    this.name = 'OrderValidationError'
+    this.issues = issues
+  }
+}
+
+const TZ_OFFSET_MS =7 * 60 * 60 * 1000 // Asia/Ho_Chi_Minh
 
 /** UTC Date for VN midnight of the given YYYY-MM-DD (dayOffset shifts whole days). */
 function vnDayBoundary(iso: string, dayOffset = 0): Date | null {
@@ -185,18 +200,42 @@ export async function createOrder(data: {
     let totalAmount = 0
     let profit = 0
     const orderItems = []
+    const loadProduct = makeProductLoader(session)
 
+    // Lượt 1: kiểm tra toàn bộ sản phẩm trước khi trừ kho, gom hết lỗi để
+    // báo một lần thay vì dừng ở sản phẩm lỗi đầu tiên. Cùng sản phẩm/kho xuất
+    // hiện ở nhiều dòng thì cộng dồn số lượng.
+    const issues: OrderItemIssue[] = []
+    const groups = new Map<string, { indexes: number[]; quantity: number; warehouse: Warehouse; productId: string }>()
+    for (const [index, item] of data.items.entries()) {
+      const key = `${item.product}:${item.warehouse}`
+      const group = groups.get(key) ?? { indexes: [], quantity: 0, warehouse: item.warehouse, productId: item.product }
+      group.indexes.push(index)
+      group.quantity += item.quantity
+      groups.set(key, group)
+    }
+    for (const group of groups.values()) {
+      const product = mongoose.isValidObjectId(group.productId) ? await loadProduct(group.productId) : null
+      if (!product) {
+        const message = `Không tìm thấy sản phẩm: ${group.productId}`
+        for (const index of group.indexes) issues.push({ index, message })
+        continue
+      }
+      const warehouseStock = (product[warehouseField[group.warehouse]] ?? 0) as number
+      if (warehouseStock < group.quantity) {
+        const message = `Kho ${group.warehouse} không đủ hàng cho sản phẩm: ${product.name} (cần ${group.quantity}, còn ${warehouseStock})`
+        for (const index of group.indexes) issues.push({ index, message })
+      }
+    }
+    if (issues.length > 0) {
+      throw new OrderValidationError(issues.sort((a, b) => a.index - b.index))
+    }
+
+    // Lượt 2: trừ kho và dựng các dòng đơn hàng
     for (const item of data.items) {
       const field = warehouseField[item.warehouse]
-      const product = await Product.findById(item.product).session(session)
-      if (!product) throw new Error(`Không tìm thấy sản phẩm: ${item.product}`)
-
-      const warehouseStock = (product[field] ?? 0) as number
-      if (warehouseStock < item.quantity) {
-        throw new Error(`Kho ${item.warehouse} không đủ hàng cho sản phẩm: ${product.name} (còn ${warehouseStock})`)
-      }
-
-      product[field] = warehouseStock - item.quantity
+      const product = (await loadProduct(item.product))!
+      product[field] = ((product[field] ?? 0) as number) - item.quantity
       await product.save({ session })
 
       const unitPrice = item.price ?? product.sellingPrice

@@ -102,6 +102,8 @@ function NameAutocomplete({ value, onChange, onSelect }: NameAutocompleteProps) 
 }
 
 /* ── Main form ── */
+const TWO_COLUMN_THRESHOLD = 3
+
 export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFormProps) {
   const [productCache, setProductCache] = useState<Record<string, Product>>({})
   const [selectedItems, setSelectedItems] = useState<
@@ -112,6 +114,9 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
   const [confirmOpen, setConfirmOpen]   = useState(false)
   const [loading, setLoading]           = useState(false)
   const [error, setError]               = useState('')
+  /* Lỗi theo từng dòng sản phẩm (index → các thông báo) do server trả về */
+  const [itemErrors, setItemErrors]     = useState<Record<number, string[]>>({})
+  const twoColumns = selectedItems.length >= TWO_COLUMN_THRESHOLD
 
   /* Tải dữ liệu sản phẩm cho các dòng có sẵn (mở từ trang sản phẩm) */
   useEffect(() => {
@@ -151,12 +156,31 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
   }, [debouncedPhone])
 
   const addItem    = () => setSelectedItems((prev) => [...prev, { product: '', quantity: 1, sellingPrice: 0, warehouse: 'QB' }])
-  const removeItem = (i: number) => setSelectedItems((prev) => prev.filter((_, idx) => idx !== i))
-  const updateItem = (i: number, field: 'quantity' | 'sellingPrice', value: number | '') =>
+  const clearItemError = (i: number) =>
+    setItemErrors((prev) => { if (!(i in prev)) return prev; const next = { ...prev }; delete next[i]; return next })
+  const removeItem = (i: number) => {
+    setSelectedItems((prev) => prev.filter((_, idx) => idx !== i))
+    // Dời chỉ số lỗi của các dòng phía sau lên một bậc
+    setItemErrors((prev) => {
+      const next: Record<number, string[]> = {}
+      for (const [k, v] of Object.entries(prev)) {
+        const idx = Number(k)
+        if (idx < i) next[idx] = v
+        else if (idx > i) next[idx - 1] = v
+      }
+      return next
+    })
+  }
+  const updateItem = (i: number, field: 'quantity' | 'sellingPrice', value: number | '') => {
+    if (field === 'quantity') clearItemError(i)
     setSelectedItems((prev) => { const next = [...prev]; next[i] = { ...next[i], [field]: value }; return next })
-  const updateItemWarehouse = (i: number, w: Warehouse) =>
+  }
+  const updateItemWarehouse = (i: number, w: Warehouse) => {
+    clearItemError(i)
     setSelectedItems((prev) => { const next = [...prev]; next[i] = { ...next[i], warehouse: w }; return next })
+  }
   const handleProductSelect = (i: number, product: Product) => {
+    clearItemError(i)
     setProductCache((prev) => ({ ...prev, [product._id]: product }))
     setSelectedItems((prev) => { const next = [...prev]; next[i] = { ...next[i], product: product._id, sellingPrice: product.sellingPrice }; return next })
   }
@@ -182,9 +206,16 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
   /* Validate rồi mở confirm popup */
   const handleFormSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (selectedItems.length === 0)            { setError('Vui lòng thêm ít nhất một sản phẩm'); return }
-    if (selectedItems.some((it) => !it.product)) { setError('Vui lòng chọn sản phẩm cho mỗi dòng'); return }
+    if (selectedItems.length === 0) { setError('Vui lòng thêm ít nhất một sản phẩm'); return }
+    const missing: Record<number, string[]> = {}
+    selectedItems.forEach((it, i) => { if (!it.product) missing[i] = ['Vui lòng chọn sản phẩm'] })
+    if (Object.keys(missing).length > 0) {
+      setItemErrors(missing)
+      setError(`Vui lòng chọn sản phẩm cho ${Object.keys(missing).length} dòng còn trống`)
+      return
+    }
     setError('')
+    setItemErrors({})
     setConfirmOpen(true)
   }
 
@@ -203,10 +234,22 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Tạo đơn hàng thất bại')
+      if (!res.ok) {
+        const issues: { index: number; message: string }[] = Array.isArray(data.issues) ? data.issues : []
+        if (issues.length > 0) {
+          const byIndex: Record<number, string[]> = {}
+          for (const { index, message } of issues) (byIndex[index] ??= []).push(message)
+          setItemErrors(byIndex)
+          setConfirmOpen(false)
+          setError(`Có ${Object.keys(byIndex).length} sản phẩm bị lỗi, vui lòng kiểm tra lại`)
+          return
+        }
+        throw new Error(data.error || 'Tạo đơn hàng thất bại')
+      }
       onSuccess?.(data)
     } catch (err) {
       setConfirmOpen(false)
+      setItemErrors({})
       setError(err instanceof Error ? err.message : 'Đã xảy ra lỗi không xác định')
     } finally {
       setLoading(false)
@@ -226,7 +269,7 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
       </div>
 
       {error && (
-        <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>
+        <p role="alert" className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>
       )}
 
       {/* ── Thông tin khách hàng (compact) ── */}
@@ -276,12 +319,30 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
         </div>
       </div>
 
-      {/* ── Danh sách sản phẩm ── */}
-      <div className="space-y-2">
+      {/* ── Danh sách sản phẩm: từ TWO_COLUMN_THRESHOLD dòng trở lên thì chia 2 cột
+             (data-wide báo cho DialogContent bên ngoài nới rộng theo) ── */}
+      <div
+        data-wide={twoColumns || undefined}
+        className={cn('grid gap-2 items-start', twoColumns && 'lg:grid-cols-2')}
+      >
         {selectedItems.map((item, index) => {
           const selected = productCache[item.product]
+          const rowErrors = itemErrors[index]
           return (
-            <div key={index} className="p-3 bg-muted/30 rounded-lg border space-y-2">
+            <div
+              key={index}
+              className={cn(
+                'p-3 rounded-lg border space-y-2',
+                rowErrors ? 'border-destructive bg-destructive/5' : 'bg-muted/30',
+              )}
+            >
+              {rowErrors && (
+                <div className="space-y-0.5">
+                  {rowErrors.map((m, j) => (
+                    <p key={j} className="text-xs font-medium text-destructive">{m}</p>
+                  ))}
+                </div>
+              )}
               {/* Row 1: tên sản phẩm + nút xoá */}
               <div className="flex items-center gap-2">
                 <div className="flex-1 min-w-0">
