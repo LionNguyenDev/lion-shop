@@ -233,7 +233,11 @@ export default function OrderForm({ onSuccess, onCancel, initialItems }: OrderFo
           status,
         }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
+      if (res.status === 401 || res.redirected) {
+        window.location.href = '/signin'
+        throw new Error(data.error || 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại')
+      }
       if (!res.ok) {
         const issues: { index: number; message: string }[] = Array.isArray(data.issues) ? data.issues : []
         if (issues.length > 0) {

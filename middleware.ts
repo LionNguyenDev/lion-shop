@@ -46,6 +46,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
+  // Not logged in calling an API → 401 JSON (a redirect would hand fetch() an HTML page)
+  if (!session && pathname.startsWith('/api/')) {
+    return NextResponse.json({ error: 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại' }, { status: 401 })
+  }
+
   // Not logged in and trying to access a protected page → go to signin
   if (!session && !isPublic) {
     return NextResponse.redirect(new URL('/signin', req.url))
