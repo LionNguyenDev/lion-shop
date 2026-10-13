@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
  
 const nextConfig: NextConfig = {
   images: {
+    // Ảnh đã nằm trên CDN (Cloudinary, cloudfront...) → tắt Image Optimization của Vercel
+    // để không tốn hạn mức 5.000 transformations/tháng của gói Hobby
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
