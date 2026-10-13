@@ -1,5 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { AUTH_COOKIE, canUseTikTok, verifySession } from '@/lib/auth'
+import {
+  AUTH_COOKIE,
+  SESSION_COOKIE_OPTIONS,
+  canUseTikTok,
+  shouldRenewSession,
+  signSession,
+  verifySession,
+  type SessionPayload,
+} from '@/lib/auth'
 
 /** Pages that are reachable only when logged out */
 const PUBLIC_PATHS = ['/', '/signin', '/signup']
@@ -35,6 +43,18 @@ export async function middleware(req: NextRequest) {
   const token   = req.cookies.get(AUTH_COOKIE)?.value
   const session = token ? await verifySession(token) : null
 
+  const res = route(req, session)
+
+  // Sliding session: re-issue the token while the user is active so it never expires mid-use
+  if (session && shouldRenewSession(session)) {
+    res.cookies.set(AUTH_COOKIE, await signSession(session), SESSION_COOKIE_OPTIONS)
+  }
+
+  return res
+}
+
+function route(req: NextRequest, session: SessionPayload | null): NextResponse {
+  const { pathname } = req.nextUrl
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))
 
   // Logged in but on a public page → go to dashboard (admin) or user page (non-admin)

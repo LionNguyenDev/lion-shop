@@ -9,6 +9,19 @@ const SECRET = new TextEncoder().encode(
 export const AUTH_COOKIE = 'lionshop_session'
 const ALG = 'HS256'
 
+/** Session lifetime — sliding: renewed by middleware while the user keeps using the app */
+export const SESSION_MAX_AGE = 60 * 60 * 24 * 7 // 7 days (seconds)
+/** Re-issue the token once it is older than this */
+const SESSION_RENEW_AFTER = 60 * 60 * 24 // 1 day (seconds)
+
+export const SESSION_COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: 'lax' as const,
+  path:     '/',
+  maxAge:   SESSION_MAX_AGE,
+  secure:   process.env.NODE_ENV === 'production',
+}
+
 export interface SessionPayload {
   sub: string        // user id
   username: string
@@ -36,7 +49,7 @@ export async function signSession(payload: SessionPayload): Promise<string> {
   return await new SignJWT(payload)
     .setProtectedHeader({ alg: ALG })
     .setIssuedAt()
-    .setExpirationTime('7d')
+    .setExpirationTime(`${SESSION_MAX_AGE}s`)
     .sign(SECRET)
 }
 
@@ -47,4 +60,10 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
   } catch {
     return null
   }
+}
+
+/** True when a valid session was issued long enough ago that it should be re-signed */
+export function shouldRenewSession(session: SessionPayload): boolean {
+  const iat = typeof session.iat === 'number' ? session.iat : 0
+  return Date.now() / 1000 - iat > SESSION_RENEW_AFTER
 }

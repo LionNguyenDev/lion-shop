@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import dbConnect from '@/lib/db'
 import User from '@/models/User'
-import { AUTH_COOKIE, signSession, verifyPassword } from '@/lib/auth'
+import { AUTH_COOKIE, SESSION_COOKIE_OPTIONS, signSession, verifyPassword } from '@/lib/auth'
 
 export async function POST(request: Request) {
   try {
@@ -31,13 +31,7 @@ export async function POST(request: Request) {
     const res = NextResponse.json({
       user: { id: user._id, username: user.username, name: user.name, role: user.role },
     })
-    res.cookies.set(AUTH_COOKIE, token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      path:     '/',
-      maxAge:   60 * 60 * 24 * 7,
-      secure:   process.env.NODE_ENV === 'production',
-    })
+    res.cookies.set(AUTH_COOKIE, token, SESSION_COOKIE_OPTIONS)
     return res
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Sign-in failed'
